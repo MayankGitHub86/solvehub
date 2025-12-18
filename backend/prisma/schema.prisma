@@ -1,0 +1,145 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  username      String         @unique
+  name          String
+  password      String
+  avatar        String?
+  bio           String?
+  points        Int            @default(0)
+  isOnline      Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  
+  questions     Question[]
+  answers       Answer[]
+  votes         Vote[]
+  comments      Comment[]
+  badges        UserBadge[]
+  savedQuestions SavedQuestion[]
+}
+
+model Question {
+  id            String         @id @default(uuid())
+  title         String
+  content       String
+  preview       String
+  views         Int            @default(0)
+  isSolved      Boolean        @default(false)
+  authorId      String
+  author        User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  
+  tags          QuestionTag[]
+  answers       Answer[]
+  votes         Vote[]
+  comments      Comment[]
+  savedBy       SavedQuestion[]
+}
+
+model Answer {
+  id            String         @id @default(uuid())
+  content       String
+  isAccepted    Boolean        @default(false)
+  questionId    String
+  question      Question       @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  authorId      String
+  author        User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  
+  votes         Vote[]
+  comments      Comment[]
+}
+
+model Tag {
+  id            String         @id @default(uuid())
+  name          String         @unique
+  description   String?
+  color         String?
+  count         Int            @default(0)
+  createdAt     DateTime       @default(now())
+  
+  questions     QuestionTag[]
+}
+
+model QuestionTag {
+  questionId    String
+  question      Question       @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  tagId         String
+  tag           Tag            @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  
+  @@id([questionId, tagId])
+}
+
+model Vote {
+  id            String         @id @default(uuid())
+  value         Int            // 1 for upvote, -1 for downvote
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questionId    String?
+  question      Question?      @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answerId      String?
+  answer        Answer?        @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  createdAt     DateTime       @default(now())
+  
+  @@unique([userId, questionId])
+  @@unique([userId, answerId])
+}
+
+model Comment {
+  id            String         @id @default(uuid())
+  content       String
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questionId    String?
+  question      Question?      @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answerId      String?
+  answer        Answer?        @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model Badge {
+  id            String         @id @default(uuid())
+  name          String         @unique
+  description   String?
+  icon          String?
+  color         String?
+  createdAt     DateTime       @default(now())
+  
+  users         UserBadge[]
+}
+
+model UserBadge {
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badgeId       String
+  badge         Badge          @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  earnedAt      DateTime       @default(now())
+  
+  @@id([userId, badgeId])
+}
+
+model SavedQuestion {
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questionId    String
+  question      Question       @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  savedAt       DateTime       @default(now())
+  
+  @@id([userId, questionId])
+}
