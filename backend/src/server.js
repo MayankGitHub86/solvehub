@@ -46,9 +46,12 @@ app.use('/api/notifications', notificationRoutes);
 // Error handling
 app.use(errorHandler);
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server is running on http://localhost:${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV}`);
-});
+// Only listen if not in serverless environment
+if (process.env.VERCEL !== '1') {
+  app.listen(PORT, () => {
+    console.log(`🚀 Server is running on http://localhost:${PORT}`);
+    console.log(`📊 Environment: ${process.env.NODE_ENV}`);
+  });
+}
 
 module.exports = app;
