@@ -22,8 +22,8 @@ const getAllQuestions = async (
     
     if (search) {
       where.OR = [
-        { title: { contains(search), mode: 'insensitive' } },
-        { content: { contains(search), mode: 'insensitive' } }
+        { title: { contains: search, mode: 'insensitive' } },
+        { content: { contains: search, mode: 'insensitive' } }
       ];
     }
 
@@ -31,7 +31,7 @@ const getAllQuestions = async (
       where.tags = {
         some: {
           tag: {
-            name: { equals(category), mode: 'insensitive' }
+            name: { equals: category, mode: 'insensitive' }
           }
         }
       };
@@ -41,14 +41,14 @@ const getAllQuestions = async (
       prisma.question.findMany({
         where,
         skip,
-        take(limit),
+        take: Number(limit),
         include: {
           author: {
             select: {
-              id,
-              name,
-              username,
-              avatar
+              id: true,
+              name: true,
+              username: true,
+              avatar: true
             }
           },
           tags: {
@@ -70,27 +70,27 @@ const getAllQuestions = async (
     ]);
 
     const formattedQuestions = questions.map(q => ({
-      id.id,
-      title.title,
-      preview.preview,
-      author.author,
-      tags.tags.map(t => t.tag.name),
-      votes._count.votes,
-      answers._count.answers,
-      views.views,
-      isSolved.isSolved,
-      createdAt.createdAt
+      id: q.id,
+      title: q.title,
+      preview: q.preview,
+      author: q.author,
+      tags: q.tags.map(t => t.tag.name),
+      votes: q._count.votes,
+      answers: q._count.answers,
+      views: q.views,
+      isSolved: q.isSolved,
+      createdAt: q.createdAt
     }));
 
     res.json({
-      success,
+      success: true,
       data: {
-        questions,
+        questions: formattedQuestions,
         pagination: {
-          page(page),
-          limit(limit),
+          page: Number(page),
+          limit: Number(limit),
           total,
-          totalPages.ceil(total / Number(limit))
+          totalPages: Math.ceil(total / Number(limit))
         }
       }
     });
@@ -106,18 +106,18 @@ const getTrendingQuestions = async (
 ) => {
   try {
     const questions = await prisma.question.findMany({
-      take,
+      take: 10,
       where: {
         createdAt: {
-          gte Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // Last 7 days
+          gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // Last 7 days
         }
       },
       include: {
         author: {
           select: {
-            id,
-            name,
-            username,
+            id: true,
+            name: true,
+            username: true,
             avatar
           }
         },
@@ -139,7 +139,7 @@ const getTrendingQuestions = async (
     });
 
     res.json({
-      success,
+      success: true,
       data
     });
   } catch (error) {
@@ -220,7 +220,7 @@ const getQuestionById = async (
     });
 
     res.json({
-      success,
+      success: true,
       data
     });
   } catch (error) {
@@ -236,11 +236,11 @@ const createQuestion = async (
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors.array() });
+      return res.status(400).json({ errors: errors.array() });
     }
 
     const { title, content, tags } = req.body;
-    const userId = req.userId!;
+    const userId = req.userId;
 
     // Generate preview (first 200 chars)
     const preview = content.substring(0, 200);
@@ -268,10 +268,10 @@ const createQuestion = async (
         title,
         content,
         preview,
-        authorId,
+        authorId: userId,
         tags: {
-          create.map(tag => ({
-            tagId.id
+          create: tagObjects.map(tag => ({
+            tagId: tag.id
           }))
         }
       },
@@ -296,8 +296,8 @@ const createQuestion = async (
     await Promise.all(
       tagObjects.map(tag =>
         prisma.tag.update({
-          where: { id.id },
-          data: { count: { increment } }
+          where: { id: tag.id },
+          data: { count: { increment: 1 } }
         })
       )
     );
@@ -306,12 +306,12 @@ const createQuestion = async (
     notifications.notify({
       type: 'question',
       message: 'New question posted',
-      data: { id.id, title.title, author.author }
+      data: { id: question.id, title: question.title, author: question.author }
     });
 
     res.status(201).json({
-      success,
-      data
+      success: true,
+      data: question
     });
   } catch (error) {
     next(error);
@@ -326,7 +326,7 @@ const updateQuestion = async (
   try {
     const { id } = req.params;
     const { title, content } = req.body;
-    const userId = req.userId!;
+    const userId = req.userId;
 
     const question = await prisma.question.findUnique({
       where: { id }
@@ -363,7 +363,7 @@ const updateQuestion = async (
     });
 
     res.json({
-      success,
+      success: true,
       data
     });
   } catch (error) {
@@ -378,7 +378,7 @@ const deleteQuestion = async (
 ) => {
   try {
     const { id } = req.params;
-    const userId = req.userId!;
+    const userId = req.userId;
 
     const question = await prisma.question.findUnique({
       where: { id }
@@ -397,7 +397,7 @@ const deleteQuestion = async (
     });
 
     res.json({
-      success,
+      success: true,
       message: 'Question deleted successfully'
     });
   } catch (error) {
@@ -412,7 +412,7 @@ const saveQuestion = async (
 ) => {
   try {
     const { id } = req.params;
-    const userId = req.userId!;
+    const userId = req.userId;
 
     await prisma.savedQuestion.create({
       data: {
@@ -422,7 +422,7 @@ const saveQuestion = async (
     });
 
     res.json({
-      success,
+      success: true,
       message: 'Question saved successfully'
     });
   } catch (error) {
@@ -437,7 +437,7 @@ const unsaveQuestion = async (
 ) => {
   try {
     const { id } = req.params;
-    const userId = req.userId!;
+    const userId = req.userId;
 
     await prisma.savedQuestion.delete({
       where: {
@@ -449,10 +449,21 @@ const unsaveQuestion = async (
     });
 
     res.json({
-      success,
+      success: true,
       message: 'Question unsaved successfully'
     });
   } catch (error) {
     next(error);
   }
+};
+
+module.exports = {
+  getAllQuestions,
+  getTrendingQuestions,
+  getQuestionById,
+  createQuestion,
+  updateQuestion,
+  deleteQuestion,
+  saveQuestion,
+  unsaveQuestion
 };

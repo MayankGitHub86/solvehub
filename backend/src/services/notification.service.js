@@ -1,23 +1,13 @@
-const { Response, Request } = require('express');
-
-  res;
-  userId?: string;
-};
-
-export 
-  message;
-  data?: any;
-  targetUserId?: string;
-};
-
 class NotificationService {
-  private clients = [];
+  constructor() {
+    this.clients = [];
+  }
 
-  subscribe(req, res, userId?) {
+  subscribe(req, res, userId) {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
-    res.flushHeaders?.();
+    if (res.flushHeaders) res.flushHeaders();
 
     const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const client = { id, res, userId };
@@ -39,9 +29,11 @@ class NotificationService {
     targets.forEach((c) => c.res.write(payload));
   }
 
-  private send(res, event) {
+  send(res, event) {
     res.write(`data: ${JSON.stringify(event)}\n\n`);
   }
 }
 
 const notifications = new NotificationService();
+
+module.exports = { notifications };

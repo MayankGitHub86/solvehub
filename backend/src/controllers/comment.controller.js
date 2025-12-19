@@ -13,11 +13,11 @@ const createComment = async (
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors.array() });
+      return res.status(400).json({ errors: errors.array() });
     }
 
     const { content, questionId, answerId } = req.body;
-    const userId = req.userId!;
+    const userId = req.userId;
 
     if (!questionId && !answerId) {
       throw new AppError('Either questionId or answerId is required', 400);
@@ -32,27 +32,27 @@ const createComment = async (
       include: {
         user: {
           select: {
-            id,
-            name,
-            username,
-            avatar
+            id: true,
+            name: true,
+            username: true,
+            avatar: true
           }
         }
       }
     });
 
     res.status(201).json({
-      success,
-      data
+      success: true,
+      data: comment
     });
 
     // Notify owner of question/answer
     if (questionId) {
-      const q = await prisma.question.findUnique({ where: { id } });
-      if (q) notifications.notify({ type: 'comment', message: 'New comment on your question', data: { questionId }, targetUserId.authorId });
+      const q = await prisma.question.findUnique({ where: { id: questionId } });
+      if (q) notifications.notify({ type: 'comment', message: 'New comment on your question', data: { questionId }, targetUserId: q.authorId });
     } else if (answerId) {
-      const a = await prisma.answer.findUnique({ where: { id } });
-      if (a) notifications.notify({ type: 'comment', message: 'New comment on your answer', data: { answerId }, targetUserId.authorId });
+      const a = await prisma.answer.findUnique({ where: { id: answerId } });
+      if (a) notifications.notify({ type: 'comment', message: 'New comment on your answer', data: { answerId }, targetUserId: a.authorId });
     }
   } catch (error) {
     next(error);
@@ -67,7 +67,7 @@ const updateComment = async (
   try {
     const { id } = req.params;
     const { content } = req.body;
-    const userId = req.userId!;
+    const userId = req.userId;
 
     const comment = await prisma.comment.findUnique({
       where: { id }
@@ -87,18 +87,18 @@ const updateComment = async (
       include: {
         user: {
           select: {
-            id,
-            name,
-            username,
-            avatar
+            id: true,
+            name: true,
+            username: true,
+            avatar: true
           }
         }
       }
     });
 
     res.json({
-      success,
-      data
+      success: true,
+      data: updatedComment
     });
   } catch (error) {
     next(error);
@@ -112,7 +112,7 @@ const deleteComment = async (
 ) => {
   try {
     const { id } = req.params;
-    const userId = req.userId!;
+    const userId = req.userId;
 
     const comment = await prisma.comment.findUnique({
       where: { id }
@@ -131,10 +131,16 @@ const deleteComment = async (
     });
 
     res.json({
-      success,
+      success: true,
       message: 'Comment deleted successfully'
     });
   } catch (error) {
     next(error);
   }
+};
+
+module.exports = {
+  createComment,
+  updateComment,
+  deleteComment
 };

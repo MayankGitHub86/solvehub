@@ -35,10 +35,12 @@ export function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
-            <Link to="/" className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-background" />
-              </div>
+            <Link to="/" className="flex items-center gap-1.5 mb-4">
+              <img 
+                src="/assets/Solvehub.png" 
+                alt="SolveHub" 
+                className="w-10 h-10 rounded-xl"
+              />
               <span className="font-bold text-xl gradient-text">SolveHub</span>
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed">

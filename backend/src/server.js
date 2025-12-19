@@ -12,6 +12,7 @@ const tagRoutes = require('./routes/tag.routes');
 const notificationRoutes = require('./routes/notification.routes');
 const voteRoutes = require('./routes/vote.routes');
 const commentRoutes = require('./routes/comment.routes');
+const settingsRoutes = require('./routes/settings.routes');
 
 dotenv.config();
 
@@ -20,7 +21,7 @@ const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:8081',
+  origin: ['http://localhost:8080', 'http://localhost:8081', process.env.FRONTEND_URL].filter(Boolean),
   credentials: true
 }));
 app.use(morgan('dev'));
@@ -29,7 +30,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Lumina Share API is running' });
+  res.json({ status: 'ok', message: 'SolveHub API is running' });
 });
 
 // Routes
@@ -42,6 +43,7 @@ app.use('/api/tags', tagRoutes);
 app.use('/api/votes', voteRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Error handling
 app.use(errorHandler);

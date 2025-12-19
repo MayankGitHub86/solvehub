@@ -1,5 +1,5 @@
 <<<<<<< HEAD
-# Lumina Share - Community Q&A Platform
+# SolveHub - Community Q&A Platform
 
 A modern, full-stack Q&A and community platform where developers can ask questions, share knowledge, and build their reputation.
 

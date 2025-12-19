@@ -12,10 +12,10 @@ const errorHandler = (
   const message = err.message || 'Internal Server Error';
 
   res.status(statusCode).json({
-    success,
+    success: false,
     error: {
       message,
-      ...(process.env.NODE_ENV === 'development' && { stack.stack })
+      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
     }
   });
 };
@@ -29,3 +29,5 @@ class AppError extends Error {
     Error.captureStackTrace(this, this.constructor);
   }
 }
+
+module.exports = { errorHandler, AppError };

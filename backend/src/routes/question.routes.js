@@ -12,7 +12,7 @@ router.post(
   '/',
   authenticate,
   [
-    body('title').isLength({ min }).withMessage('Title must be at least 10 characters'),
+    body('title').isLength({ min: 10 }).withMessage('Title must be at least 10 characters'),
     body('content').notEmpty().withMessage('Content is required'),
     body('tags').isArray().withMessage('Tags must be an array')
   ],

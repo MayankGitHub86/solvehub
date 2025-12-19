@@ -72,9 +72,8 @@ const Explore = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
       <main className="pt-20 pb-16">
-        <div className="container mx-auto px-4">
-          <div className="flex gap-8">
-            <Sidebar />
+        <div className="container mx-auto px-4 flex gap-8">
+          <Sidebar />
             
             <div className="flex-1">
               {/* Header */}
@@ -199,7 +198,6 @@ const Explore = () => {
               </div>
             </div>
           </div>
-        </div>
       </main>
       <Footer />
     </div>

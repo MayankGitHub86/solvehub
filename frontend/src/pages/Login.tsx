@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/auth";
-import { useNavigate } from "react-router-dom";
-import { Github, Globe2, Mail } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
+import { Github, Mail } from "lucide-react";
+import GoogleIcon from "@/components/icons/GoogleIcon";
 import { handleGoogleAuth, handleMicrosoftAuth, handleGitHubAuth } from "@/lib/oauth";
 import { loadGoogleScript, initializeGoogleButton } from "@/lib/google-auth";
 import { initializeMicrosoftAuth } from "@/lib/microsoft-auth";
@@ -82,27 +83,6 @@ const Login = () => {
     });
   }, []);
 
-  // Initialize Google button after component mounts
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const googleButtonContainer = document.getElementById("google-signin-button");
-      if (googleButtonContainer && (window as any).google) {
-        try {
-          (window as any).google.accounts.id.renderButton(googleButtonContainer, {
-            theme: "outline",
-            size: "large",
-            width: "100%",
-            locale: "en",
-          });
-        } catch (err) {
-          console.error("Error rendering Google button:", err);
-        }
-      }
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, []);
-
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -110,7 +90,7 @@ const Login = () => {
 
     try {
       await login(email, password);
-      navigate("/");
+      navigate("/dashboard");
     } catch (err: any) {
       setError(err?.message || "Something went wrong");
     } finally {
@@ -118,21 +98,57 @@ const Login = () => {
     }
   };
 
-  const handleGoogleSuccess = (credentialResponse: any) => {
+  const handleGoogleClick = async () => {
     setLoading(true);
-    handleGoogleAuth(
-      credentialResponse,
-      (token) => {
-        localStorage.setItem("token", token);
-        toast.success("Google login successful!");
-        navigate("/");
-      },
-      (error) => {
-        setError(error);
-        toast.error(error);
-        setLoading(false);
+    try {
+      await loadGoogleScript();
+      if (!(window as any).google) {
+        throw new Error("Google OAuth not loaded");
       }
-    );
+      
+      // Trigger Google Sign-In popup
+      (window as any).google.accounts.id.prompt();
+    } catch (err: any) {
+      setError(err?.message || "Google authentication failed");
+      toast.error(err?.message || "Google authentication failed");
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    setLoading(true);
+    try {
+      const idToken = credentialResponse.credential;
+      if (!idToken) {
+        throw new Error("No token received from Google");
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/auth/oauth/google`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ idToken }),
+        }
+      );
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error?.message || "Google authentication failed");
+      }
+
+      // Store both token and user data
+      localStorage.setItem("token", data.data.token);
+      localStorage.setItem("user", JSON.stringify(data.data.user));
+      toast.success("Google login successful!");
+      
+      // Reload to update auth context
+      window.location.href = "/dashboard";
+    } catch (err: any) {
+      setError(err.message);
+      toast.error(err.message);
+      setLoading(false);
+    }
   };
 
   const handleMicrosoftSuccess = async () => {
@@ -147,19 +163,27 @@ const Login = () => {
         scopes: ["user.read"],
       });
 
-      handleMicrosoftAuth(
-        response,
-        (token) => {
-          localStorage.setItem("token", token);
-          toast.success("Microsoft login successful!");
-          navigate("/");
-        },
-        (error) => {
-          setError(error);
-          toast.error(error);
-          setLoading(false);
+      const backendResponse = await fetch(
+        `${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/auth/oauth/microsoft`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ accessToken: response.accessToken }),
         }
       );
+
+      const data = await backendResponse.json();
+      if (!backendResponse.ok) {
+        throw new Error(data.error?.message || "Microsoft authentication failed");
+      }
+
+      // Store both token and user data
+      localStorage.setItem("token", data.data.token);
+      localStorage.setItem("user", JSON.stringify(data.data.user));
+      toast.success("Microsoft login successful!");
+      
+      // Reload to update auth context
+      window.location.href = "/dashboard";
     } catch (err: any) {
       setError(err?.message || "Microsoft authentication failed");
       toast.error(err?.message || "Microsoft authentication failed");
@@ -176,6 +200,18 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      {/* Back to Home button */}
+      <div className="fixed top-4 left-4 z-50">
+        <Link to="/">
+          <Button variant="ghost" size="sm" className="gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            Back to Home
+          </Button>
+        </Link>
+      </div>
+
       <div className="grid lg:grid-cols-2 min-h-screen">
         {/* Story / Brand side */}
         <div className="relative hidden lg:block overflow-hidden">
@@ -235,7 +271,7 @@ const Login = () => {
           <div className="w-full max-w-xl space-y-8">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-primary font-semibold">Lumina Share</p>
+                <p className="text-sm text-primary font-semibold">SolveHub</p>
                 <h2 className="text-2xl font-bold">Welcome back</h2>
                 <p className="text-sm text-muted-foreground">Join the community and keep your momentum.</p>
               </div>
@@ -256,7 +292,17 @@ const Login = () => {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-                <div id="google-signin-button" className="col-span-1" />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={handleGoogleClick}
+                  disabled={loading}
+                >
+                  <GoogleIcon className="w-4 h-4 mr-2" />
+                  <span className="hidden sm:inline">Google</span>
+                </Button>
                 <Button
                   type="button"
                   variant="outline"
@@ -317,6 +363,15 @@ const Login = () => {
                   Use the seeded accounts (emma@example.com, john@example.com, lisa@example.com) with password "password123" for quick access.
                 </p>
               </form>
+
+              <div className="mt-6 text-center">
+                <p className="text-sm text-muted-foreground">
+                  Want to explore first?{" "}
+                  <Link to="/" className="text-primary hover:underline font-medium">
+                    Browse as guest
+                  </Link>
+                </p>
+              </div>
             </div>
           </div>
         </div>

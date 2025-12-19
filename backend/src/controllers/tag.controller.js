@@ -12,7 +12,7 @@ const getAllTags = async (
     });
 
     res.json({
-      success,
+      success: true,
       data
     });
   } catch (error) {
@@ -32,7 +32,7 @@ const getPopularTags = async (
     });
 
     res.json({
-      success,
+      success: true,
       data
     });
   } catch (error) {
@@ -59,25 +59,25 @@ const getQuestionsByTag = async (
         }
       },
       skip,
-      take(limit),
+      take: limit,
       include: {
         author: {
           select: {
-            id,
-            name,
-            username,
-            avatar
+            id: true,
+            name: true,
+            username: true,
+            avatar: true
           }
         },
         tags: {
           include: {
-            tag
+            tag: true
           }
         },
         _count: {
           select: {
-            answers,
-            votes
+            answers: true,
+            votes: true
           }
         }
       },
@@ -85,10 +85,17 @@ const getQuestionsByTag = async (
     });
 
     res.json({
-      success,
+      success: true,
       data
     });
   } catch (error) {
     next(error);
   }
+};
+
+
+module.exports = {
+  getAllTags,
+  getPopularTags,
+  getQuestionsByTag
 };

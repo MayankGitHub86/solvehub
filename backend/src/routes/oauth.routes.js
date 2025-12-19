@@ -1,4 +1,4 @@
-const { Router, Request, Response } = require('express');
+const { Router } = require('express');
 const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
 
@@ -16,21 +16,21 @@ router.post('/oauth/google', async (req, res) => {
 
     // In production, verify the token with Google's public key
     // For now, decode it (not secure for production!)
-    const decoded = jwt.decode(idToken) ;
+    const decoded = jwt.decode(idToken);
 
     if (!decoded || !decoded.email) {
       return res.status(401).json({ error: { message: 'Invalid token' } });
     }
 
     // Find or create user
-    let user = await prisma.user.findUnique({ where: { email.email } });
+    let user = await prisma.user.findUnique({ where: { email: decoded.email } });
 
     if (!user) {
       user = await prisma.user.create({
         data: {
-          email.email,
-          username.email.split('@')[0],
-          name.name || decoded.email,
+          email: decoded.email,
+          username: decoded.email.split('@')[0],
+          name: decoded.name || decoded.email,
           password: '', // OAuth users don't have password
         },
       });
@@ -38,7 +38,7 @@ router.post('/oauth/google', async (req, res) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId.id, email.email },
+      { userId: user.id, email: user.email },
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '7d' }
     );
@@ -47,15 +47,15 @@ router.post('/oauth/google', async (req, res) => {
       data: {
         token,
         user: {
-          id.id,
-          email.email,
-          username.username,
-          name.name,
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          name: user.name,
         },
       },
     });
   } catch (error) {
-    res.status(500).json({ error: { message.message } });
+    res.status(500).json({ error: { message: error.message } });
   }
 });
 
@@ -81,15 +81,15 @@ router.post('/oauth/microsoft', async (req, res) => {
 
     // Find or create user
     let user = await prisma.user.findUnique({
-      where: { email.userPrincipalName },
+      where: { email: microsoftUser.userPrincipalName },
     });
 
     if (!user) {
       user = await prisma.user.create({
         data: {
-          email.userPrincipalName,
-          username.mailNickname || microsoftUser.userPrincipalName.split('@')[0],
-          name.displayName,
+          email: microsoftUser.userPrincipalName,
+          username: microsoftUser.mailNickname || microsoftUser.userPrincipalName.split('@')[0],
+          name: microsoftUser.displayName,
           password: '',
         },
       });
@@ -97,7 +97,7 @@ router.post('/oauth/microsoft', async (req, res) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId.id, email.email },
+      { userId: user.id, email: user.email },
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '7d' }
     );
@@ -106,15 +106,15 @@ router.post('/oauth/microsoft', async (req, res) => {
       data: {
         token,
         user: {
-          id.id,
-          email.email,
-          username.username,
-          name.name,
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          name: user.name,
         },
       },
     });
   } catch (error) {
-    res.status(500).json({ error: { message.message } });
+    res.status(500).json({ error: { message: error.message } });
   }
 });
 
@@ -134,9 +134,9 @@ router.post('/oauth/github', async (req, res) => {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
       },
-      body.stringify({
-        client_id.env.GITHUB_CLIENT_ID,
-        client_secret.env.GITHUB_CLIENT_SECRET,
+      body: JSON.stringify({
+        client_id: process.env.GITHUB_CLIENT_ID,
+        client_secret: process.env.GITHUB_CLIENT_SECRET,
         code,
       }),
     });
@@ -155,15 +155,15 @@ router.post('/oauth/github', async (req, res) => {
 
     // Find or create user
     let user = await prisma.user.findUnique({
-      where: { email.email },
+      where: { email: githubUser.email },
     });
 
     if (!user) {
       user = await prisma.user.create({
         data: {
-          email.email,
-          username.login,
-          name.name,
+          email: githubUser.email,
+          username: githubUser.login,
+          name: githubUser.name,
           password: '',
         },
       });
@@ -171,7 +171,7 @@ router.post('/oauth/github', async (req, res) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId.id, email.email },
+      { userId: user.id, email: user.email },
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '7d' }
     );
@@ -180,15 +180,15 @@ router.post('/oauth/github', async (req, res) => {
       data: {
         token,
         user: {
-          id.id,
-          email.email,
-          username.username,
-          name.name,
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          name: user.name,
         },
       },
     });
   } catch (error) {
-    res.status(500).json({ error: { message.message } });
+    res.status(500).json({ error: { message: error.message } });
   }
 });
 

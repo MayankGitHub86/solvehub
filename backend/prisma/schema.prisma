@@ -6,18 +6,23 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mongodb"
   url      = env("DATABASE_URL")
 }
 
 model User {
-  id            String         @id @default(uuid())
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
   email         String         @unique
   username      String         @unique
   name          String
   password      String
   avatar        String?
   bio           String?
+  location      String?
+  website       String?
+  github        String?
+  twitter       String?
+  linkedin      String?
   points        Int            @default(0)
   isOnline      Boolean        @default(false)
   createdAt     DateTime       @default(now())
@@ -32,16 +37,17 @@ model User {
 }
 
 model Question {
-  id            String         @id @default(uuid())
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
   title         String
   content       String
   preview       String
   views         Int            @default(0)
   isSolved      Boolean        @default(false)
-  authorId      String
-  author        User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
+  
+  authorId      String         @db.ObjectId
+  author        User           @relation(fields: [authorId], references: [id])
   
   tags          QuestionTag[]
   answers       Answer[]
@@ -51,95 +57,106 @@ model Question {
 }
 
 model Answer {
-  id            String         @id @default(uuid())
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
   content       String
   isAccepted    Boolean        @default(false)
-  questionId    String
-  question      Question       @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  authorId      String
-  author        User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
+  
+  questionId    String         @db.ObjectId
+  question      Question       @relation(fields: [questionId], references: [id])
+  
+  authorId      String         @db.ObjectId
+  author        User           @relation(fields: [authorId], references: [id])
   
   votes         Vote[]
   comments      Comment[]
 }
 
 model Tag {
-  id            String         @id @default(uuid())
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
   name          String         @unique
   description   String?
-  color         String?
-  count         Int            @default(0)
   createdAt     DateTime       @default(now())
   
   questions     QuestionTag[]
 }
 
 model QuestionTag {
-  questionId    String
-  question      Question       @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  tagId         String
-  tag           Tag            @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
   
-  @@id([questionId, tagId])
+  questionId    String         @db.ObjectId
+  question      Question       @relation(fields: [questionId], references: [id])
+  
+  tagId         String         @db.ObjectId
+  tag           Tag            @relation(fields: [tagId], references: [id])
+  
+  @@unique([questionId, tagId])
 }
 
 model Vote {
-  id            String         @id @default(uuid())
-  value         Int            // 1 for upvote, -1 for downvote
-  userId        String
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  questionId    String?
-  question      Question?      @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  answerId      String?
-  answer        Answer?        @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
+  value         Int
   createdAt     DateTime       @default(now())
   
-  @@unique([userId, questionId])
-  @@unique([userId, answerId])
+  userId        String         @db.ObjectId
+  user          User           @relation(fields: [userId], references: [id])
+  
+  questionId    String?        @db.ObjectId
+  question      Question?      @relation(fields: [questionId], references: [id])
+  
+  answerId      String?        @db.ObjectId
+  answer        Answer?        @relation(fields: [answerId], references: [id])
 }
 
 model Comment {
-  id            String         @id @default(uuid())
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
   content       String
-  userId        String
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  questionId    String?
-  question      Question?      @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  answerId      String?
-  answer        Answer?        @relation(fields: [answerId], references: [id], onDelete: Cascade)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
+  
+  userId        String         @db.ObjectId
+  user          User           @relation(fields: [userId], references: [id])
+  
+  questionId    String?        @db.ObjectId
+  question      Question?      @relation(fields: [questionId], references: [id])
+  
+  answerId      String?        @db.ObjectId
+  answer        Answer?        @relation(fields: [answerId], references: [id])
 }
 
 model Badge {
-  id            String         @id @default(uuid())
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
   name          String         @unique
-  description   String?
-  icon          String?
-  color         String?
+  description   String
+  icon          String
   createdAt     DateTime       @default(now())
   
   users         UserBadge[]
 }
 
 model UserBadge {
-  userId        String
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  badgeId       String
-  badge         Badge          @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
   earnedAt      DateTime       @default(now())
   
-  @@id([userId, badgeId])
+  userId        String         @db.ObjectId
+  user          User           @relation(fields: [userId], references: [id])
+  
+  badgeId       String         @db.ObjectId
+  badge         Badge          @relation(fields: [badgeId], references: [id])
+  
+  @@unique([userId, badgeId])
 }
 
 model SavedQuestion {
-  userId        String
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  questionId    String
-  question      Question       @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
   savedAt       DateTime       @default(now())
   
-  @@id([userId, questionId])
+  userId        String         @db.ObjectId
+  user          User           @relation(fields: [userId], references: [id])
+  
+  questionId    String         @db.ObjectId
+  question      Question       @relation(fields: [questionId], references: [id])
+  
+  @@unique([userId, questionId])
 }

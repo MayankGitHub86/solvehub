@@ -1,10 +1,20 @@
-import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { Search, Menu, X, Sparkles, Home, Compass, Users, Bookmark } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Search, Menu, X, Sparkles, Home, Compass, Users, Bookmark, LogOut, LayoutDashboard, Settings, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NotificationPanel } from "@/components/NotificationPanel";
 import { AskQuestionDialog } from "@/components/AskQuestionDialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/context/auth";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
@@ -18,21 +28,40 @@ export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [isAskDialogOpen, setIsAskDialogOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50">
-      <nav className="glass-strong border-b border-white/5">
+      <nav className={cn(
+        "border-b transition-all duration-300",
+        isScrolled ? "glass-strong border-white/5" : "border-transparent"
+      )}>
         <div className="container mx-auto px-4">
           <div className="flex h-16 items-center justify-between gap-4">
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-2 group">
-              <div className="relative">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
-                  <Sparkles className="w-5 h-5 text-background" />
-                </div>
-                <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary to-secondary blur-lg opacity-50 group-hover:opacity-75 transition-opacity" />
-              </div>
+            <Link to="/" className="flex items-center gap-1 group">
+              <img 
+                src="/assets/Solvehub.png" 
+                alt="SolveHub" 
+                className="w-16 h-16 rounded-xl transition-transform duration-300 group-hover:scale-110"
+              />
               <span className="font-bold text-xl hidden sm:block gradient-text">
                 SolveHub
               </span>
@@ -102,13 +131,52 @@ export function Navbar() {
               {/* Notifications */}
               <NotificationPanel />
 
-              {/* Auth */}
-              <Link to="/login" className="hidden sm:block">
-                <Button variant="outline" size="sm" className="border-white/20">Log In</Button>
-              </Link>
-              <Link to="/signup" className="hidden sm:block">
-                <Button variant="hero" size="sm">Sign Up</Button>
-              </Link>
+              {/* Auth - Conditional rendering */}
+              {user ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={user.avatar} alt={user.name} />
+                        <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56" align="end" forceMount>
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">{user.name}</p>
+                        <p className="text-xs leading-none text-muted-foreground">
+                          @{user.username}
+                        </p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate("/dashboard")}>
+                      <LayoutDashboard className="mr-2 h-4 w-4" />
+                      <span>Dashboard</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate("/settings")}>
+                      <Settings className="mr-2 h-4 w-4" />
+                      <span>Settings</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout}>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Log out</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <>
+                  <Link to="/login" className="hidden sm:block">
+                    <Button variant="outline" size="sm" className="border-white/20">Log In</Button>
+                  </Link>
+                  <Link to="/signup" className="hidden sm:block">
+                    <Button variant="hero" size="sm">Sign Up</Button>
+                  </Link>
+                </>
+              )}
 
               {/* Mobile Menu Toggle */}
               <button
@@ -152,14 +220,66 @@ export function Navbar() {
               );
             })}
             <div className="pt-2">
-              <div className="grid grid-cols-2 gap-2">
-                <Button variant="outline" onClick={() => { setIsOpen(false); }}>
-                  <Link to="/login" className="w-full h-full block">Log In</Link>
-                </Button>
-                <Button variant="hero" onClick={() => { setIsOpen(false); }}>
-                  <Link to="/signup" className="w-full h-full block">Sign Up</Link>
-                </Button>
-              </div>
+              {user ? (
+                <>
+                  <div className="mb-3 p-3 rounded-xl bg-muted/50">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={user.avatar} alt={user.name} />
+                        <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">{user.name}</p>
+                        <p className="text-xs text-muted-foreground">@{user.username}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start"
+                      onClick={() => {
+                        navigate("/dashboard");
+                        setIsOpen(false);
+                      }}
+                    >
+                      <LayoutDashboard className="mr-2 h-4 w-4" />
+                      Dashboard
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start"
+                      onClick={() => {
+                        navigate("/settings");
+                        setIsOpen(false);
+                      }}
+                    >
+                      <Settings className="mr-2 h-4 w-4" />
+                      Settings
+                    </Button>
+                    <Button 
+                      variant="destructive" 
+                      className="w-full justify-start"
+                      onClick={() => {
+                        handleLogout();
+                        setIsOpen(false);
+                      }}
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Log out
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  <Button variant="outline" onClick={() => { setIsOpen(false); }}>
+                    <Link to="/login" className="w-full h-full block">Log In</Link>
+                  </Button>
+                  <Button variant="hero" onClick={() => { setIsOpen(false); }}>
+                    <Link to="/signup" className="w-full h-full block">Sign Up</Link>
+                  </Button>
+                </div>
+              )}
               <Button 
                 variant="secondary" 
                 className="w-full mt-3"

@@ -1,6 +1,4 @@
-const { Request, Response, NextFunction } = require('express');
 const prisma = require('../lib/prisma');
-const { AuthRequest } = require('../middleware/auth');
 const { AppError } = require('../middleware/errorHandler');
 
 const getAllUsers = async (
@@ -15,8 +13,8 @@ const getAllUsers = async (
     const where = search
       ? {
           OR: [
-            { name: { contains(search), mode: 'insensitive'  } },
-            { username: { contains(search), mode: 'insensitive'  } }
+            { name: { contains: search, mode: 'insensitive' } },
+            { username: { contains: search, mode: 'insensitive' } }
           ]
         }
       : {};
@@ -25,20 +23,20 @@ const getAllUsers = async (
       prisma.user.findMany({
         where,
         skip,
-        take(limit),
+        take: Number(limit),
         select: {
-          id,
-          name,
-          username,
-          avatar,
-          bio,
-          points,
-          isOnline,
+          id: true,
+          name: true,
+          username: true,
+          avatar: true,
+          bio: true,
+          points: true,
+          isOnline: true,
           _count: {
             select: {
-              questions,
-              answers,
-              badges
+              questions: true,
+              answers: true,
+              badges: true
             }
           }
         },
@@ -48,14 +46,14 @@ const getAllUsers = async (
     ]);
 
     res.json({
-      success,
+      success: true,
       data: {
         users,
         pagination: {
-          page(page),
-          limit(limit),
+          page: Number(page),
+          limit: Number(limit),
           total,
-          totalPages.ceil(total / Number(limit))
+          totalPages: Math.ceil(total / Number(limit))
         }
       }
     });
@@ -97,15 +95,15 @@ const getLeaderboard = async (
     });
 
     const leaderboard = users.map((user, index) => ({
-      rank + 1,
+      rank: index + 1,
       ...user,
-      answers._count.answers,
-      questions._count.questions,
-      badgeCount._count.badges
+      answers: user._count.answers,
+      questions: user._count.questions,
+      badgeCount: user._count.badges
     }));
 
     res.json({
-      success,
+      success: true,
       data
     });
   } catch (error) {
@@ -146,7 +144,7 @@ const getUserById = async (
     const { password, ...userWithoutPassword } = user;
 
     res.json({
-      success,
+      success: true,
       data
     });
   } catch (error) {
@@ -182,7 +180,7 @@ const getUserStats = async (
     }
 
     res.json({
-      success,
+      success: true,
       data
     });
   } catch (error) {
@@ -218,10 +216,28 @@ const updateUser = async (
     });
 
     res.json({
-      success,
+      success: true,
       data
     });
   } catch (error) {
     next(error);
   }
+};
+
+
+module.exports = {
+  getAllUsers,
+  getLeaderboard,
+  getUserById,
+  getUserStats,
+  updateUser
+};
+
+
+module.exports = {
+  getAllUsers,
+  getLeaderboard,
+  getUserById,
+  getUserStats,
+  updateUser
 };

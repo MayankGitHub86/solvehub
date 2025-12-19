@@ -13,7 +13,7 @@ const register = async (
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors.array() });
+      return res.status(400).json({ errors: errors.array() });
     }
 
     const { email, username, name, password } = req.body;
@@ -38,27 +38,27 @@ const register = async (
         email,
         username,
         name,
-        password,
-        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`
+        password: hashedPassword,
+        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${name}&backgroundColor=1e293b&textColor=ffffff`
       }
     });
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId.id },
-      process.env.JWT_SECRET!,
+      { userId: user.id },
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
     res.status(201).json({
-      success,
+      success: true,
       data: {
         user: {
-          id.id,
-          email.email,
-          username.username,
-          name.name,
-          avatar.avatar
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          name: user.name,
+          avatar: user.avatar
         },
         token
       }
@@ -76,7 +76,7 @@ const login = async (
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors.array() });
+      return res.status(400).json({ errors: errors.array() });
     }
 
     const { email, password } = req.body;
@@ -99,27 +99,27 @@ const login = async (
 
     // Update online status
     await prisma.user.update({
-      where: { id.id },
-      data: { isOnline }
+      where: { id: user.id },
+      data: { isOnline: true }
     });
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId.id },
-      process.env.JWT_SECRET!,
+      { userId: user.id },
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
     res.json({
-      success,
+      success: true,
       data: {
         user: {
-          id.id,
-          email.email,
-          username.username,
-          name.name,
-          avatar.avatar,
-          points.points
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          name: user.name,
+          avatar: user.avatar,
+          points: user.points
         },
         token
       }
@@ -127,4 +127,9 @@ const login = async (
   } catch (error) {
     next(error);
   }
+};
+
+module.exports = {
+  register,
+  login
 };

@@ -71,18 +71,6 @@ const mockProblems = [
     timeAgo: "12h ago",
     isSolved: true,
   },
-  {
-    id: 6,
-    title: "Implementing efficient database queries with Prisma and PostgreSQL",
-    preview: "Looking for best practices on optimizing Prisma queries for a PostgreSQL database. How can I reduce query times and implement proper indexing strategies?",
-    author: { name: "Sam Wilson", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sam" },
-    tags: ["Prisma", "PostgreSQL", "Database"],
-    votes: 145,
-    answers: 11,
-    views: 2890,
-    timeAgo: "1d ago",
-    isSolved: false,
-  },
 ];
 
 export function FeaturedSection() {

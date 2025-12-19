@@ -1,6 +1,6 @@
-# OAuth Setup Guide for Lumina Share
+# OAuth Setup Guide for SolveHub
 
-This guide helps you set up Google, Microsoft, and GitHub OAuth authentication for your Lumina Share platform.
+This guide helps you set up Google, Microsoft, and GitHub OAuth authentication for your SolveHub platform.
 
 ## Overview
 The OAuth integration allows users to sign in using their existing accounts from major providers (Google, Microsoft, GitHub), providing a seamless authentication experience.
@@ -17,7 +17,7 @@ The OAuth integration allows users to sign in using their existing accounts from
 
 ### Step 1: Create Google Cloud Project
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project (e.g., "Lumina Share")
+2. Create a new project (e.g., "SolveHub")
 3. Enable the "Google+ API"
 
 ### Step 2: Create OAuth 2.0 Credentials
@@ -77,7 +77,7 @@ MICROSOFT_CLIENT_SECRET=your_client_secret
 1. Go to [GitHub Developer Settings](https://github.com/settings/developers)
 2. Click **New OAuth App**
 3. Fill in the form:
-   - **Application name**: Lumina Share
+   - **Application name**: SolveHub
    - **Homepage URL**: `http://localhost:8083`
    - **Authorization callback URL**: `http://localhost:8083/auth/github/callback`
 

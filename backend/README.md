@@ -1,6 +1,6 @@
-# Lumina Share Backend
+# SolveHub Backend
 
-RESTful API backend for Lumina Share community platform built with Express.js, TypeScript, and Prisma.
+RESTful API backend for SolveHub community platform built with Express.js, TypeScript, and Prisma.
 
 ## Features
 
