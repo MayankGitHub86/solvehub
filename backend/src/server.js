@@ -20,6 +20,12 @@ const commentRoutes = require('./routes/comment.routes');
 const settingsRoutes = require('./routes/settings.routes');
 const searchRoutes = require('./routes/search.routes');
 const collectionRoutes = require('./routes/collection.routes');
+const achievementRoutes = require('./routes/achievement.routes');
+const aiRoutes = require('./routes/ai.routes');
+const followRoutes = require('./routes/follow.routes');
+const messageRoutes = require('./routes/message.routes');
+const contactRoutes = require('./routes/contact.routes');
+const reviewRoutes = require('./routes/review.routes');
 
 // Initialize Express app
 const app = express();
@@ -76,6 +82,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/auth', oauthRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/users', followRoutes);
 app.use('/api/questions', questionRoutes);
 app.use('/api/answers', answerRoutes);
 app.use('/api/tags', tagRoutes);
@@ -85,6 +92,11 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/collections', collectionRoutes);
+app.use('/api/achievements', achievementRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/messages', messageRoutes);
+app.use('/api/contact', contactRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 // 404 handler
 app.use(notFoundHandler);
@@ -123,10 +135,21 @@ process.on('uncaughtException', (error) => {
 // Start server (only if not in serverless environment)
 let server;
 if (process.env.VERCEL !== '1') {
-  server = app.listen(config.port, () => {
+  const http = require('http');
+  const socketService = require('./services/socket.service');
+  
+  // Create HTTP server
+  server = http.createServer(app);
+  
+  // Initialize Socket.IO
+  socketService.initialize(server);
+  
+  // Start listening
+  server.listen(config.port, () => {
     logger.success(`Server is running on http://localhost:${config.port}`);
     logger.info(`Environment: ${config.nodeEnv}`);
     logger.info(`Database: ${config.databaseUrl ? 'Connected' : 'Not configured'}`);
+    logger.info(`WebSocket: Enabled`);
   });
 }
 

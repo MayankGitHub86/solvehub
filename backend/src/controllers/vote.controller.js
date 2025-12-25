@@ -3,6 +3,7 @@ const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const { notifications } = require('../services/notification.service');
+const socketService = require('../services/socket.service');
 
 /**
  * Vote on a question or answer
@@ -80,16 +81,30 @@ const vote = asyncHandler(async (req, res) => {
       // Revert points
       if (questionId) {
         const question = await prisma.question.findUnique({ where: { id: questionId } });
-        await prisma.user.update({
+        const updatedUser = await prisma.user.update({
           where: { id: question.authorId },
           data: { points: { decrement: value * 5 } }
         });
+        
+        // Emit real-time point update
+        socketService.notifyUser(question.authorId, 'points:update', {
+          points: updatedUser.points,
+          change: -(value * 5)
+        });
+        socketService.broadcast('leaderboard:update', { userId: question.authorId, points: updatedUser.points });
       } else if (answerId) {
         const answer = await prisma.answer.findUnique({ where: { id: answerId } });
-        await prisma.user.update({
+        const updatedUser = await prisma.user.update({
           where: { id: answer.authorId },
           data: { points: { decrement: value * 5 } }
         });
+        
+        // Emit real-time point update
+        socketService.notifyUser(answer.authorId, 'points:update', {
+          points: updatedUser.points,
+          change: -(value * 5)
+        });
+        socketService.broadcast('leaderboard:update', { userId: answer.authorId, points: updatedUser.points });
       }
 
       action = 'removed';
@@ -106,16 +121,30 @@ const vote = asyncHandler(async (req, res) => {
 
       if (questionId) {
         const question = await prisma.question.findUnique({ where: { id: questionId } });
-        await prisma.user.update({
+        const updatedUser = await prisma.user.update({
           where: { id: question.authorId },
           data: { points: { increment: pointChange } }
         });
+        
+        // Emit real-time point update
+        socketService.notifyUser(question.authorId, 'points:update', {
+          points: updatedUser.points,
+          change: pointChange
+        });
+        socketService.broadcast('leaderboard:update', { userId: question.authorId, points: updatedUser.points });
       } else if (answerId) {
         const answer = await prisma.answer.findUnique({ where: { id: answerId } });
-        await prisma.user.update({
+        const updatedUser = await prisma.user.update({
           where: { id: answer.authorId },
           data: { points: { increment: pointChange } }
         });
+        
+        // Emit real-time point update
+        socketService.notifyUser(answer.authorId, 'points:update', {
+          points: updatedUser.points,
+          change: pointChange
+        });
+        socketService.broadcast('leaderboard:update', { userId: answer.authorId, points: updatedUser.points });
       }
 
       action = 'updated';
@@ -133,10 +162,17 @@ const vote = asyncHandler(async (req, res) => {
     // Award points to content author
     if (questionId) {
       const question = await prisma.question.findUnique({ where: { id: questionId } });
-      await prisma.user.update({
+      const updatedUser = await prisma.user.update({
         where: { id: question.authorId },
         data: { points: { increment: value * 5 } }
       });
+      
+      // Emit real-time point update
+      socketService.notifyUser(question.authorId, 'points:update', {
+        points: updatedUser.points,
+        change: value * 5
+      });
+      socketService.broadcast('leaderboard:update', { userId: question.authorId, points: updatedUser.points });
 
       // Send notification
       notifications.notify({
@@ -147,10 +183,17 @@ const vote = asyncHandler(async (req, res) => {
       });
     } else if (answerId) {
       const answer = await prisma.answer.findUnique({ where: { id: answerId } });
-      await prisma.user.update({
+      const updatedUser = await prisma.user.update({
         where: { id: answer.authorId },
         data: { points: { increment: value * 5 } }
       });
+      
+      // Emit real-time point update
+      socketService.notifyUser(answer.authorId, 'points:update', {
+        points: updatedUser.points,
+        change: value * 5
+      });
+      socketService.broadcast('leaderboard:update', { userId: answer.authorId, points: updatedUser.points });
 
       // Send notification
       notifications.notify({

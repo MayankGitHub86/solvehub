@@ -1,11 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Search, Menu, X, Sparkles, Home, Compass, Users, Bookmark, LogOut, LayoutDashboard, Settings, User } from "lucide-react";
+import { Search, Menu, X, Sparkles, Home, Compass, Users, Bookmark, LogOut, LayoutDashboard, Settings, User, Keyboard, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NotificationPanel } from "@/components/NotificationPanel";
 import { AskQuestionDialog } from "@/components/AskQuestionDialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcutsDialog";
+import { useGlobalKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,6 +23,7 @@ const navLinks = [
   { href: "/", label: "Home", icon: Home },
   { href: "/explore", label: "Explore", icon: Compass },
   { href: "/community", label: "Community", icon: Users },
+  { href: "/badges", label: "Badges", icon: Award },
   { href: "/saved", label: "Saved", icon: Bookmark },
   { href: "/contact", label: "Contact", icon: Sparkles },
 ];
@@ -30,10 +33,22 @@ export function Navbar() {
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isAskDialogOpen, setIsAskDialogOpen] = useState(false);
+  const [isShortcutsDialogOpen, setIsShortcutsDialogOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout, loading } = useAuth();
+
+  // Keyboard shortcuts
+  useGlobalKeyboardShortcuts(
+    () => setIsAskDialogOpen(true),
+    () => setIsShortcutsDialogOpen(true),
+    () => {
+      setIsSearchExpanded(true);
+      setTimeout(() => searchInputRef.current?.focus(), 100);
+    }
+  );
 
   useEffect(() => {
     const handleScroll = () => {
@@ -117,8 +132,9 @@ export function Navbar() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
+                    ref={searchInputRef}
                     type="search"
-                    placeholder="Search problems..."
+                    placeholder="Search problems... (Press /)"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className={cn(
@@ -157,6 +173,17 @@ export function Navbar() {
 
               {/* Notifications */}
               <NotificationPanel />
+
+              {/* Keyboard Shortcuts Button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsShortcutsDialogOpen(true)}
+                className="rounded-full"
+                title="Keyboard shortcuts (?)"
+              >
+                <Keyboard className="h-5 w-5 text-muted-foreground" />
+              </Button>
 
               {/* Auth - Conditional rendering */}
               {loading ? (
@@ -330,6 +357,12 @@ export function Navbar() {
       <AskQuestionDialog 
         open={isAskDialogOpen} 
         onOpenChange={setIsAskDialogOpen} 
+      />
+
+      {/* Keyboard Shortcuts Dialog */}
+      <KeyboardShortcutsDialog
+        open={isShortcutsDialogOpen}
+        onOpenChange={setIsShortcutsDialogOpen}
       />
     </header>
   );

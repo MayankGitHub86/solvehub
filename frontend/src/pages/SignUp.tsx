@@ -4,11 +4,10 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/auth";
 import { useNavigate, Link } from "react-router-dom";
 import api from "@/lib/api";
-import { Github, Mail, ArrowLeft } from "lucide-react";
+import { Mail, ArrowLeft } from "lucide-react";
 import GoogleIcon from "@/components/icons/GoogleIcon";
 import { initializeMicrosoftAuth } from "@/lib/microsoft-auth";
 import { initiateGoogleOAuth } from "@/lib/google-oauth2";
-import { initiateGitHubOAuth } from "@/lib/github-oauth";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { FadeIn } from "@/components/AnimatedPage";
@@ -159,15 +158,6 @@ const SignUp = () => {
     }
   };
 
-  const handleGitHubClick = () => {
-    try {
-      initiateGitHubOAuth();
-    } catch (err: any) {
-      setError(err?.message || "GitHub authentication failed");
-      toast.error(err?.message || "GitHub authentication failed");
-    }
-  };
-
   return (
     <div className="min-h-screen text-foreground">
       {/* Back to Home button */}
@@ -264,7 +254,7 @@ const SignUp = () => {
 
             <FadeIn delay={0.3}>
             <div className="glass rounded-2xl p-8 shadow-xl border border-white/10">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
                 <Button
                   type="button"
                   variant="outline"
@@ -286,17 +276,6 @@ const SignUp = () => {
                 >
                   <Mail className="w-4 h-4 mr-2" />
                   <span className="hidden sm:inline">Microsoft</span>
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={handleGitHubClick}
-                  disabled={loading}
-                >
-                  <Github className="w-4 h-4 mr-2" />
-                  <span className="hidden sm:inline">GitHub</span>
                 </Button>
               </div>
 

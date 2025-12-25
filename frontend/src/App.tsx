@@ -13,15 +13,19 @@ import Trending from "./pages/Trending";
 import Leaderboard from "./pages/Leaderboard";
 import Settings from "./pages/Settings";
 import QuestionDetail from "./pages/QuestionDetail";
+import UserProfile from "./pages/UserProfile";
+import Messages from "./pages/Messages";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import Contact from "./pages/Contact";
 import GoogleCallback from "./pages/GoogleCallback";
+import Badges from "./pages/Badges";
 import { AuthProvider, useAuth } from "./context/auth";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { KeyboardShortcutHint } from "./components/KeyboardShortcutHint";
+import { LiveNotifications } from "./components/LiveNotifications";
 import useNotifications from "./hooks/use-notifications";
-import { BackgroundCarousel } from "./components/BackgroundCarousel";
 
 const queryClient = new QueryClient();
 
@@ -32,9 +36,10 @@ const AppContent = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <BackgroundCarousel />
         <Toaster />
         <Sonner />
+        <KeyboardShortcutHint />
+        <LiveNotifications />
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Routes>
             <Route path="/" element={<Index />} />
@@ -42,8 +47,11 @@ const AppContent = () => {
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/explore" element={<ProtectedRoute><Explore /></ProtectedRoute>} />
             <Route path="/questions/:id" element={<ProtectedRoute><QuestionDetail /></ProtectedRoute>} />
+            <Route path="/users/:username" element={<UserProfile />} />
+            <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
             <Route path="/community" element={<ProtectedRoute><Community /></ProtectedRoute>} />
             <Route path="/saved" element={<ProtectedRoute><Saved /></ProtectedRoute>} />
+            <Route path="/badges" element={<ProtectedRoute><Badges /></ProtectedRoute>} />
             <Route path="/tags" element={<Tags />} />
             <Route path="/tags/:tagName" element={<Tags />} />
             <Route path="/trending" element={<Trending />} />

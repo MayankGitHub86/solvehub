@@ -285,27 +285,45 @@ exports.getSettings = asyncHandler(async (req, res) => {
   );
 });
 
-// @desc    Upload avatar
-// @route   POST /api/settings/avatar
+// @desc    Update avatar
+// @route   PUT /api/settings/avatar
 // @access  Private
-exports.uploadAvatar = asyncHandler(async (req, res) => {
+exports.updateAvatar = asyncHandler(async (req, res) => {
   const userId = req.userId;
   const { avatar } = req.body;
 
   if (!avatar) {
-    throw ApiError.badRequest('Avatar URL is required');
+    throw ApiError.badRequest('Avatar data is required');
   }
 
-  // Validate URL
-  try {
-    new URL(avatar);
-  } catch (error) {
-    throw ApiError.badRequest('Invalid avatar URL');
+  // Check if it's a base64 image or URL
+  let avatarUrl = avatar;
+  
+  // If it's a base64 image, we'll store it directly
+  // In production, you'd upload to cloud storage (S3, Cloudinary, etc.)
+  if (avatar.startsWith('data:image/')) {
+    // Validate base64 image size (max 5MB)
+    const base64Length = avatar.length - (avatar.indexOf(',') + 1);
+    const sizeInBytes = (base64Length * 3) / 4;
+    const sizeInMB = sizeInBytes / (1024 * 1024);
+    
+    if (sizeInMB > 5) {
+      throw ApiError.badRequest('Image size must be less than 5MB');
+    }
+    
+    avatarUrl = avatar; // Store base64 directly
+  } else {
+    // Validate URL
+    try {
+      new URL(avatar);
+    } catch (error) {
+      throw ApiError.badRequest('Invalid avatar format');
+    }
   }
 
   const updatedUser = await prisma.user.update({
     where: { id: userId },
-    data: { avatar },
+    data: { avatar: avatarUrl },
     select: {
       id: true,
       email: true,
@@ -317,6 +335,6 @@ exports.uploadAvatar = asyncHandler(async (req, res) => {
   });
 
   res.status(200).json(
-    new ApiResponse(200, { user: updatedUser }, 'Avatar updated successfully')
+    new ApiResponse(200, { avatar: updatedUser.avatar }, 'Avatar updated successfully')
   );
 });

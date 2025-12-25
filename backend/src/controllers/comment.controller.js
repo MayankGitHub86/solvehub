@@ -54,6 +54,37 @@ const createComment = async (
       const a = await prisma.answer.findUnique({ where: { id: answerId } });
       if (a) notifications.notify({ type: 'comment', message: 'New comment on your answer', data: { answerId }, targetUserId: a.authorId });
     }
+
+    // Extract and notify mentioned users
+    const { extractMentions } = require('../utils/mentions');
+    const mentions = extractMentions(content);
+    
+    if (mentions.length > 0) {
+      // Find mentioned users
+      const mentionedUsers = await prisma.user.findMany({
+        where: {
+          username: { in: mentions }
+        },
+        select: { id: true, username: true }
+      });
+
+      // Notify each mentioned user
+      for (const mentionedUser of mentionedUsers) {
+        if (mentionedUser.id !== userId) { // Don't notify self
+          notifications.notify({
+            type: 'mention',
+            message: `${comment.user.name} mentioned you in a comment`,
+            data: { 
+              questionId,
+              answerId,
+              commentId: comment.id,
+              mentionedBy: comment.user.name
+            },
+            targetUserId: mentionedUser.id
+          });
+        }
+      }
+    }
   } catch (error) {
     next(error);
   }

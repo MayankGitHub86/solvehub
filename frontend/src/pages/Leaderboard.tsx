@@ -1,13 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Trophy, Medal, Crown, Star, TrendingUp, Calendar } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Sidebar } from "@/components/Sidebar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { AnimatedPage, FadeIn, StaggerContainer, StaggerItem } from "@/components/AnimatedPage";
 import { motion } from "framer-motion";
+import { useSocket } from "@/hooks/useSocket";
 
 const timeFilters = [
   { id: "week", label: "This Week" },
@@ -30,6 +31,9 @@ type LeaderItem = {
 
 const Leaderboard = () => {
   const [activeFilter, setActiveFilter] = useState("month");
+  const queryClient = useQueryClient();
+  const { socket, isConnected } = useSocket();
+  
   const { data, isLoading, isError } = useQuery({
     queryKey: ["leaderboard", { period: activeFilter }],
     queryFn: async () => {
@@ -38,6 +42,22 @@ const Leaderboard = () => {
     },
   });
   const leaderboardData: LeaderItem[] = data || [];
+
+  // Listen for real-time leaderboard updates
+  useEffect(() => {
+    if (!socket || !isConnected) return;
+
+    const handleLeaderboardUpdate = (data: { userId: string; points: number }) => {
+      // Invalidate and refetch leaderboard
+      queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
+    };
+
+    socket.on('leaderboard:update', handleLeaderboardUpdate);
+
+    return () => {
+      socket.off('leaderboard:update', handleLeaderboardUpdate);
+    };
+  }, [socket, isConnected, queryClient]);
 
   const getRankIcon = (rank: number) => {
     if (rank === 1) return <Crown className="w-6 h-6 text-yellow-500" />;

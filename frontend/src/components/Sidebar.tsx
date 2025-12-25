@@ -9,7 +9,8 @@ import {
   Award,
   Settings,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  MessageCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
@@ -18,6 +19,7 @@ import { motion, AnimatePresence } from "framer-motion";
 const mainLinks = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
   { href: "/explore", label: "Explore", icon: Compass },
+  { href: "/messages", label: "Messages", icon: MessageCircle },
   { href: "/tags", label: "Tags", icon: Tag },
   { href: "/community", label: "Community", icon: Users },
   { href: "/saved", label: "Saved", icon: Bookmark },

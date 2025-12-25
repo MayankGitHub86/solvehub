@@ -1,29 +1,47 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowUp, ArrowDown, MessageCircle, Eye, Clock, CheckCircle, ArrowLeft } from "lucide-react";
+import { ArrowUp, ArrowDown, MessageCircle, Eye, CheckCircle, ArrowLeft } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Sidebar } from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { MarkdownEditor } from "@/components/MarkdownEditor";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
+import { MarkdownPreview } from "@/components/MarkdownEditor";
+import { AIAnswerSuggestion } from "@/components/AIAnswerSuggestion";
+import { TypingIndicator } from "@/components/TypingIndicator";
+import { CommentSection } from "@/components/CommentSection";
+import { useSocket } from "@/hooks/useSocket";
 import api from "@/lib/api";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { useAuth } from "@/context/auth";
-import { AnimatedPage, FadeIn } from "@/components/AnimatedPage";
+import { AnimatedPage } from "@/components/AnimatedPage";
 
 const QuestionDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [commentContent, setCommentContent] = useState("");
   const [answerContent, setAnswerContent] = useState("");
   const [questionVotes, setQuestionVotes] = useState(0);
   const [answerVotes, setAnswerVotes] = useState<Record<string, number>>({});
+  
+  // Socket.IO for real-time features
+  const { joinQuestion, leaveQuestion, startTyping, stopTyping } = useSocket();
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Join question room on mount
+  useEffect(() => {
+    if (id) {
+      joinQuestion(id);
+      return () => {
+        leaveQuestion(id);
+      };
+    }
+  }, [id, joinQuestion, leaveQuestion]);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["question", id],
@@ -67,20 +85,6 @@ const QuestionDetail = () => {
     enabled: !!id && !!data && !!data.answers,
   });
 
-  const createCommentMutation = useMutation({
-    mutationFn: async (data: { content: string; questionId?: string; answerId?: string }) => {
-      return api.createComment(data);
-    },
-    onSuccess: () => {
-      toast.success("Comment posted!");
-      setCommentContent("");
-      queryClient.invalidateQueries({ queryKey: ["question", id] });
-    },
-    onError: (error: any) => {
-      toast.error(error.message || "Failed to post comment");
-    },
-  });
-
   const createAnswerMutation = useMutation({
     mutationFn: async (data: { content: string; questionId: string }) => {
       return api.createAnswer(data);
@@ -121,6 +125,17 @@ const QuestionDetail = () => {
     onError: (error: any, { answerId, value }) => {
       setAnswerVotes(prev => ({ ...prev, [answerId]: (prev[answerId] || 0) - value }));
       toast.error(error.message || "Failed to vote");
+    },
+  });
+
+  const acceptAnswerMutation = useMutation({
+    mutationFn: (answerId: string) => api.acceptAnswer(answerId),
+    onSuccess: () => {
+      toast.success("Answer accepted!");
+      queryClient.invalidateQueries({ queryKey: ["question", id] });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to accept answer");
     },
   });
 
@@ -242,8 +257,8 @@ const QuestionDetail = () => {
                   </div>
 
                   {/* Content */}
-                  <div className="prose prose-invert max-w-none mb-4">
-                    <p className="text-foreground whitespace-pre-wrap">{question.content}</p>
+                  <div className="prose prose-sm dark:prose-invert max-w-none mb-4">
+                    <MarkdownPreview content={question.content} />
                   </div>
 
                   {/* Tags */}
@@ -284,48 +299,11 @@ const QuestionDetail = () => {
               </div>
 
               {/* Question Comments */}
-              {question.comments && question.comments.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-white/10">
-                  <h3 className="text-sm font-medium mb-3">Comments</h3>
-                  <div className="space-y-3">
-                    {question.comments.map((comment: any) => (
-                      <div key={comment.id} className="flex gap-3 text-sm">
-                        <Avatar className="w-6 h-6">
-                          <AvatarImage src={comment.user.avatar} />
-                          <AvatarFallback>{comment.user.name[0]}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <span className="font-medium">{comment.user.name}</span>
-                          <span className="text-muted-foreground mx-2">·</span>
-                          <span className="text-muted-foreground">
-                            {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
-                          </span>
-                          <p className="mt-1 text-foreground">{comment.content}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Add Comment */}
               <div className="mt-4 pt-4 border-t border-white/10">
-                <Textarea
-                  placeholder="Add a comment..."
-                  value={commentContent}
-                  onChange={(e) => setCommentContent(e.target.value)}
-                  rows={2}
-                  className="mb-2"
+                <CommentSection
+                  comments={question.comments || []}
+                  questionId={id}
                 />
-                <Button
-                  size="sm"
-                  onClick={() =>
-                    createCommentMutation.mutate({ content: commentContent, questionId: id })
-                  }
-                  disabled={!commentContent.trim() || createCommentMutation.isPending}
-                >
-                  {createCommentMutation.isPending ? "Posting..." : "Post Comment"}
-                </Button>
               </div>
             </div>
 
@@ -363,50 +341,56 @@ const QuestionDetail = () => {
                         </div>
 
                         <div className="flex-1">
+                          {/* Accepted Badge */}
+                          {answer.isAccepted && (
+                            <div className="mb-4 flex items-center gap-2 text-success">
+                              <CheckCircle className="w-5 h-5" />
+                              <span className="font-semibold">Accepted Answer</span>
+                            </div>
+                          )}
+                          
                           {/* Content */}
-                          <div className="prose prose-invert max-w-none mb-4">
-                            <p className="text-foreground whitespace-pre-wrap">{answer.content}</p>
+                          <div className="prose prose-sm dark:prose-invert max-w-none mb-4">
+                            <MarkdownPreview content={answer.content} />
                           </div>
 
-                          {/* Meta */}
-                          <div className="flex items-center gap-2 border-t border-white/10 pt-4">
-                            <Avatar className="w-8 h-8">
-                              <AvatarImage src={answer.author.avatar} />
-                              <AvatarFallback>{answer.author.name[0]}</AvatarFallback>
-                            </Avatar>
-                            <div className="text-sm">
-                              <div className="font-medium">{answer.author.name}</div>
-                              <div className="text-muted-foreground">
-                                {formatDistanceToNow(new Date(answer.createdAt), { addSuffix: true })}
+                          {/* Meta & Actions */}
+                          <div className="flex items-center justify-between border-t border-white/10 pt-4">
+                            <div className="flex items-center gap-2">
+                              <Avatar className="w-8 h-8">
+                                <AvatarImage src={answer.author.avatar} />
+                                <AvatarFallback>{answer.author.name[0]}</AvatarFallback>
+                              </Avatar>
+                              <div className="text-sm">
+                                <div className="font-medium">{answer.author.name}</div>
+                                <div className="text-muted-foreground">
+                                  {formatDistanceToNow(new Date(answer.createdAt), { addSuffix: true })}
+                                </div>
                               </div>
                             </div>
+                            
+                            {/* Accept Answer Button - Only for question author */}
+                            {user && user.id === question.authorId && !answer.isAccepted && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => acceptAnswerMutation.mutate(answer.id)}
+                                disabled={acceptAnswerMutation.isPending}
+                                className="gap-2 border-success/50 text-success hover:bg-success/10"
+                              >
+                                <CheckCircle className="w-4 h-4" />
+                                Accept Answer
+                              </Button>
+                            )}
                           </div>
 
                           {/* Answer Comments */}
-                          {answer.comments && answer.comments.length > 0 && (
-                            <div className="mt-4 pt-4 border-t border-white/10">
-                              <div className="space-y-3">
-                                {answer.comments.map((comment: any) => (
-                                  <div key={comment.id} className="flex gap-3 text-sm">
-                                    <Avatar className="w-6 h-6">
-                                      <AvatarImage src={comment.user.avatar} />
-                                      <AvatarFallback>{comment.user.name[0]}</AvatarFallback>
-                                    </Avatar>
-                                    <div>
-                                      <span className="font-medium">{comment.user.name}</span>
-                                      <span className="text-muted-foreground mx-2">·</span>
-                                      <span className="text-muted-foreground">
-                                        {formatDistanceToNow(new Date(comment.createdAt), {
-                                          addSuffix: true,
-                                        })}
-                                      </span>
-                                      <p className="mt-1 text-foreground">{comment.content}</p>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+                          <div className="mt-4 pt-4 border-t border-white/10">
+                            <CommentSection
+                              comments={answer.comments || []}
+                              answerId={answer.id}
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -415,19 +399,53 @@ const QuestionDetail = () => {
               )}
             </div>
 
+            {/* AI Answer Suggestion */}
+            <AIAnswerSuggestion
+              questionId={id!}
+              onUse={(suggestion) => setAnswerContent(suggestion)}
+            />
+
             {/* Post Answer */}
             <div className="glass rounded-2xl p-6">
               <h3 className="text-lg font-semibold mb-4">Your Answer</h3>
-              <Textarea
-                placeholder="Write your answer here..."
+              
+              {/* Typing Indicator */}
+              <TypingIndicator questionId={id!} />
+              
+              <MarkdownEditor
                 value={answerContent}
-                onChange={(e) => setAnswerContent(e.target.value)}
-                rows={6}
-                className="mb-4"
+                onChange={(value) => {
+                  setAnswerContent(value);
+                  
+                  // Emit typing indicator
+                  if (value && user?.username && id) {
+                    startTyping(id, user.username);
+                    
+                    // Clear previous timeout
+                    if (typingTimeoutRef.current) {
+                      clearTimeout(typingTimeoutRef.current);
+                    }
+                    
+                    // Stop typing after 2 seconds of inactivity
+                    typingTimeoutRef.current = setTimeout(() => {
+                      stopTyping(id);
+                    }, 2000);
+                  } else if (!value && id) {
+                    stopTyping(id);
+                  }
+                }}
+                placeholder="Write your answer here... (Markdown supported)"
+                minHeight="200px"
+                showToolbar={true}
+                showPreview={true}
               />
               <Button
-                onClick={() => createAnswerMutation.mutate({ content: answerContent, questionId: id! })}
+                onClick={() => {
+                  createAnswerMutation.mutate({ content: answerContent, questionId: id! });
+                  if (id) stopTyping(id);
+                }}
                 disabled={!answerContent.trim() || createAnswerMutation.isPending}
+                className="mt-4"
               >
                 {createAnswerMutation.isPending ? "Posting..." : "Post Answer"}
               </Button>

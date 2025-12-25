@@ -18,10 +18,11 @@ import { motion } from "framer-motion";
 
 
 
-const filters = [
-  { id: "trending", label: "Trending", icon: TrendingUp },
-  { id: "recent", label: "Recent", icon: Clock },
-  { id: "hot", label: "Hot", icon: Flame },
+const sortOptions = [
+  { id: "recent", label: "Recent", icon: Clock, description: "Newest first" },
+  { id: "hot", label: "Hot", icon: Flame, description: "Most voted" },
+  { id: "trending", label: "Trending", icon: TrendingUp, description: "Most viewed" },
+  { id: "unanswered", label: "Unanswered", icon: Filter, description: "No answers yet" },
 ];
 
 // Backend-powered list; we fall back to empty array while loading
@@ -43,7 +44,7 @@ const Explore = () => {
   const categoryParam = searchParams.get('category');
   const searchParam = searchParams.get('search');
   
-  const [activeFilter, setActiveFilter] = useState("trending");
+  const [activeFilter, setActiveFilter] = useState("recent");
   const [activeCategory, setActiveCategory] = useState("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isAskDialogOpen, setIsAskDialogOpen] = useState(false);
@@ -79,6 +80,7 @@ const Explore = () => {
   const sort = useMemo(() => {
     if (activeFilter === "trending") return "views";
     if (activeFilter === "hot") return "votes";
+    if (activeFilter === "unanswered") return "recent"; // Will filter by answers = 0
     return "recent";
   }, [activeFilter]);
 
@@ -95,8 +97,8 @@ const Explore = () => {
           sort: searchFilters.sort || sort,
           minVotes: searchFilters.minVotes,
           maxVotes: searchFilters.maxVotes,
-          minAnswers: searchFilters.minAnswers,
-          maxAnswers: searchFilters.maxAnswers,
+          minAnswers: activeFilter === "unanswered" ? 0 : searchFilters.minAnswers,
+          maxAnswers: activeFilter === "unanswered" ? 0 : searchFilters.maxAnswers,
           dateFrom: searchFilters.dateFrom,
           dateTo: searchFilters.dateTo,
           page: 1,
@@ -112,6 +114,12 @@ const Explore = () => {
         page: 1,
         limit: 20,
       });
+      
+      // Filter unanswered questions on frontend if needed
+      if (activeFilter === "unanswered" && res.data?.questions) {
+        res.data.questions = res.data.questions.filter((q: any) => q.answers === 0);
+      }
+      
       return res.data;
     },
     retry: 1,
@@ -189,7 +197,7 @@ const Explore = () => {
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="flex bg-muted/50 rounded-xl p-1">
-                      {filters.map((filter) => {
+                      {sortOptions.map((filter) => {
                         const Icon = filter.icon;
                         return (
                           <button
@@ -202,6 +210,7 @@ const Explore = () => {
                                 ? "bg-primary text-primary-foreground"
                                 : "text-muted-foreground hover:text-foreground"
                             )}
+                            title={filter.description}
                           >
                             <Icon className="w-4 h-4" />
                             <span className="hidden sm:inline">{filter.label}</span>

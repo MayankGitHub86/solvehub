@@ -100,6 +100,10 @@ class ApiService {
     return this.request(`/users?${query}`);
   }
 
+  async searchUsers(query: string) {
+    return this.request(`/users/search?q=${encodeURIComponent(query)}`);
+  }
+
   async getLeaderboard(period?: string) {
     return this.request(`/users/leaderboard?period=${period || 'all'}`);
   }
@@ -385,6 +389,159 @@ class ApiService {
       method: 'DELETE',
       requiresAuth: true,
     });
+  }
+
+  // Achievements
+  async getAllBadges() {
+    return this.request('/achievements/badges');
+  }
+
+  async getUserBadges(userId: string) {
+    return this.request(`/achievements/badges/user/${userId}`);
+  }
+
+  async getBadgeProgress() {
+    return this.request('/achievements/progress', {
+      requiresAuth: true,
+    });
+  }
+
+  async checkBadges() {
+    return this.request('/achievements/check', {
+      method: 'POST',
+      requiresAuth: true,
+    });
+  }
+
+  // AI Services
+  async checkAIAvailability() {
+    return this.request('/ai/availability');
+  }
+
+  async suggestAnswer(questionId: string) {
+    return this.request(`/ai/suggest-answer/${questionId}`, {
+      method: 'POST',
+      requiresAuth: true,
+    });
+  }
+
+  async suggestTags(title: string, content: string) {
+    return this.request('/ai/suggest-tags', {
+      method: 'POST',
+      body: JSON.stringify({ title, content }),
+      requiresAuth: true,
+    });
+  }
+
+  async findSimilarQuestions(title: string, content?: string) {
+    return this.request('/ai/find-similar', {
+      method: 'POST',
+      body: JSON.stringify({ title, content }),
+      requiresAuth: true,
+    });
+  }
+
+  async improveQuestion(title: string, content: string) {
+    return this.request('/ai/improve-question', {
+      method: 'POST',
+      body: JSON.stringify({ title, content }),
+      requiresAuth: true,
+    });
+  }
+
+  // Follow System
+  async followUser(userId: string) {
+    return this.request(`/users/${userId}/follow`, {
+      method: 'POST',
+      requiresAuth: true,
+    });
+  }
+
+  async unfollowUser(userId: string) {
+    return this.request(`/users/${userId}/follow`, {
+      method: 'DELETE',
+      requiresAuth: true,
+    });
+  }
+
+  async getFollowers(userId: string, page: number = 1, limit: number = 20) {
+    return this.request(`/users/${userId}/followers?page=${page}&limit=${limit}`);
+  }
+
+  async getFollowing(userId: string, page: number = 1, limit: number = 20) {
+    return this.request(`/users/${userId}/following?page=${page}&limit=${limit}`);
+  }
+
+  async getFollowStatus(userId: string) {
+    return this.request(`/users/${userId}/follow/status`, {
+      requiresAuth: true,
+    });
+  }
+
+  async getFollowStats(userId: string) {
+    return this.request(`/users/${userId}/follow/stats`);
+  }
+
+  // Messaging
+  async getConversations() {
+    return this.request('/messages/conversations', {
+      requiresAuth: true,
+    });
+  }
+
+  async getOrCreateConversation(userId: string) {
+    return this.request('/messages/conversations', {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+      requiresAuth: true,
+    });
+  }
+
+  async getMessages(conversationId: string, page: number = 1, limit: number = 50) {
+    return this.request(`/messages/conversations/${conversationId}?page=${page}&limit=${limit}`, {
+      requiresAuth: true,
+    });
+  }
+
+  async sendMessage(conversationId: string, content: string) {
+    return this.request(`/messages/conversations/${conversationId}`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+      requiresAuth: true,
+    });
+  }
+
+  async markMessagesAsRead(conversationId: string) {
+    return this.request(`/messages/conversations/${conversationId}/read`, {
+      method: 'PUT',
+      requiresAuth: true,
+    });
+  }
+
+  async getUnreadMessageCount() {
+    return this.request('/messages/unread-count', {
+      requiresAuth: true,
+    });
+  }
+
+  async deleteConversation(conversationId: string) {
+    return this.request(`/messages/conversations/${conversationId}`, {
+      method: 'DELETE',
+      requiresAuth: true,
+    });
+  }
+
+  // User Profile
+  async getUserByUsername(username: string) {
+    return this.request(`/users/username/${username}`);
+  }
+
+  async getUserQuestions(userId: string) {
+    return this.request(`/users/${userId}/questions`);
+  }
+
+  async getUserAnswers(userId: string) {
+    return this.request(`/users/${userId}/answers`);
   }
 }
 

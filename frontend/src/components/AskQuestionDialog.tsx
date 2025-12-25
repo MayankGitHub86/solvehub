@@ -5,6 +5,9 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { Badge } from "./ui/badge";
+import { MarkdownEditor } from "./MarkdownEditor";
+import { AITagSuggestion } from "./AITagSuggestion";
+import { QuestionTemplates } from "./QuestionTemplates";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import {
@@ -123,7 +126,7 @@ export function AskQuestionDialog({ open, onOpenChange }: AskQuestionDialogProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Ask a Question</DialogTitle>
           <DialogDescription>
@@ -131,7 +134,22 @@ export function AskQuestionDialog({ open, onOpenChange }: AskQuestionDialogProps
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto pr-2">
+          {/* Template Selection */}
+          <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border">
+            <div>
+              <p className="text-sm font-medium">Need help structuring your question?</p>
+              <p className="text-xs text-muted-foreground">Use a template to get started</p>
+            </div>
+            <QuestionTemplates
+              onSelectTemplate={(template) => {
+                setTitle(template.title);
+                setContent(template.content);
+                setTags(template.tags);
+              }}
+            />
+          </div>
+
           {/* Title */}
           <div className="space-y-2">
             <label className="text-sm font-medium">
@@ -154,13 +172,13 @@ export function AskQuestionDialog({ open, onOpenChange }: AskQuestionDialogProps
             <label className="text-sm font-medium">
               Details <span className="text-destructive">*</span>
             </label>
-            <Textarea
-              placeholder="Describe your question in detail. Include any code, error messages, or context that might help others understand your problem."
+            <MarkdownEditor
               value={content}
-              onChange={(e) => setContent(e.target.value)}
-              rows={8}
-              required
-              className="resize-none"
+              onChange={setContent}
+              placeholder="Describe your question in detail. Include any code, error messages, or context that might help others understand your problem."
+              minHeight="200px"
+              showToolbar={true}
+              showPreview={true}
             />
           </div>
 
@@ -169,6 +187,19 @@ export function AskQuestionDialog({ open, onOpenChange }: AskQuestionDialogProps
             <label className="text-sm font-medium">
               Tags <span className="text-destructive">*</span>
             </label>
+            
+            {/* AI Tag Suggestion */}
+            <AITagSuggestion
+              title={title}
+              content={content}
+              currentTags={tags}
+              onAddTag={(tag) => {
+                if (tags.length < 5 && !tags.includes(tag)) {
+                  setTags([...tags, tag]);
+                }
+              }}
+            />
+            
             <div className="flex gap-2">
               <Input
                 placeholder="Add tags (max 5)"
@@ -208,7 +239,7 @@ export function AskQuestionDialog({ open, onOpenChange }: AskQuestionDialogProps
           </div>
 
           {/* Actions */}
-          <div className="flex justify-end gap-2 pt-4">
+          <div className="flex justify-end gap-2 pt-4 sticky bottom-0 bg-background pb-2">
             <Button
               type="button"
               variant="outline"

@@ -8,12 +8,30 @@ import { toast } from "sonner";
 export function ContactSection() {
   const [email, setEmail] = useState("");
 
-  const handleSubscribe = (e: React.FormEvent) => {
+  const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
     if (email) {
-      // Here you would typically send to your backend
-      toast.success("Subscribed successfully!");
-      setEmail("");
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/contact/subscribe`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email }),
+        });
+
+        const data = await response.json();
+        
+        if (response.ok) {
+          toast.success(data.message || "Subscribed successfully!");
+          setEmail("");
+        } else {
+          toast.error(data.error || "Failed to subscribe. Please try again.");
+        }
+      } catch (error) {
+        console.error('Error subscribing:', error);
+        toast.error("Failed to subscribe. Please try again later.");
+      }
     }
   };
 

@@ -70,6 +70,50 @@ const getAllUsers = async (
   }
 };
 
+const searchUsers = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const { q } = req.query;
+    
+    if (!q || q.trim().length < 2) {
+      return res.json({
+        success: true,
+        data: []
+      });
+    }
+
+    const users = await prisma.user.findMany({
+      where: {
+        OR: [
+          { username: { contains: q, mode: 'insensitive' } },
+          { name: { contains: q, mode: 'insensitive' } }
+        ]
+      },
+      take: 10,
+      select: {
+        id: true,
+        name: true,
+        username: true,
+        avatar: true,
+        points: true
+      },
+      orderBy: {
+        points: 'desc'
+      }
+    });
+
+    res.json({
+      success: true,
+      data: users
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const getLeaderboard = async (
   req,
   res,
@@ -297,6 +341,7 @@ const getSavedQuestions = async (
 
 module.exports = {
   getAllUsers,
+  searchUsers,
   getLeaderboard,
   getUserById,
   getUserStats,

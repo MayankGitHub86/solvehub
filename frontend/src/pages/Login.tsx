@@ -3,11 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/auth";
 import { useNavigate, Link } from "react-router-dom";
-import { Github, Mail } from "lucide-react";
+import { Mail } from "lucide-react";
 import GoogleIcon from "@/components/icons/GoogleIcon";
 import { initializeMicrosoftAuth } from "@/lib/microsoft-auth";
 import { initiateGoogleOAuth } from "@/lib/google-oauth2";
-import { initiateGitHubOAuth } from "@/lib/github-oauth";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { FadeIn, SlideIn } from "@/components/AnimatedPage";
@@ -88,9 +87,8 @@ const Login = () => {
       
       // Determine which OAuth provider based on stored state
       const googleState = sessionStorage.getItem('google_oauth_state');
-      const githubState = sessionStorage.getItem('github_oauth_state');
       
-      console.log('Stored states:', { googleState, githubState, receivedState: state });
+      console.log('Stored states:', { googleState, receivedState: state });
       
       if (state === googleState) {
         console.log('Processing Google callback...');
@@ -117,32 +115,6 @@ const Login = () => {
           }
         };
         processGoogleCallback();
-      } else if (state === githubState) {
-        console.log('Processing GitHub callback...');
-        // Handle GitHub OAuth callback
-        const processGitHubCallback = async () => {
-          try {
-            const { handleGitHubCallback } = await import('@/lib/github-oauth');
-            const data = await handleGitHubCallback();
-            
-            console.log('GitHub auth successful:', data);
-            localStorage.setItem('token', data.data.token);
-            localStorage.setItem('user', JSON.stringify(data.data.user));
-            toast.success('GitHub login successful!');
-            
-            // Small delay to ensure toast is visible
-            setTimeout(() => {
-              window.location.href = '/dashboard';
-            }, 500);
-          } catch (err: any) {
-            console.error('GitHub callback error:', err);
-            setError(err.message);
-            toast.error(err.message);
-            window.history.replaceState({}, document.title, '/login');
-            setLoading(false);
-          }
-        };
-        processGitHubCallback();
       } else {
         console.log('State mismatch - no matching OAuth provider');
         setLoading(false);
@@ -332,7 +304,7 @@ const Login = () => {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
                 <Button
                   type="button"
                   variant="outline"
@@ -354,17 +326,6 @@ const Login = () => {
                 >
                   <Mail className="w-4 h-4 mr-2" />
                   <span className="hidden sm:inline">Microsoft</span>
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={handleGitHubClick}
-                  disabled={loading}
-                >
-                  <Github className="w-4 h-4 mr-2" />
-                  <span className="hidden sm:inline">GitHub</span>
                 </Button>
               </div>
 

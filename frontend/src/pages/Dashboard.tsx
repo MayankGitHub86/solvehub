@@ -5,6 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AskQuestionDialog } from "@/components/AskQuestionDialog";
+import { DailyChallenges } from "@/components/DailyChallenges";
+import { ReputationGraph } from "@/components/ReputationGraph";
+import { StreakCounter } from "@/components/StreakCounter";
+import { ActivityFeed } from "@/components/ActivityFeed";
 import { useAuth } from "@/context/auth";
 import { useNavigate } from "react-router-dom";
 import { 
@@ -289,12 +293,32 @@ const Dashboard = () => {
                       </CardContent>
                     </Card>
                   </FadeIn>
+
+                  {/* Reputation Graph */}
+                  <FadeIn delay={0.4}>
+                    <ReputationGraph userId={user.id} />
+                  </FadeIn>
                 </div>
 
                 {/* Right Column - Trending & Goals */}
                 <div className="space-y-4">
-                  {/* Daily Goals */}
+                  {/* Daily Challenges */}
                   <FadeIn delay={0.4}>
+                    <DailyChallenges />
+                  </FadeIn>
+
+                  {/* Streak Counter */}
+                  <FadeIn delay={0.5}>
+                    <StreakCounter currentStreak={5} longestStreak={12} />
+                  </FadeIn>
+
+                  {/* Activity Feed */}
+                  <FadeIn delay={0.6}>
+                    <ActivityFeed limit={10} />
+                  </FadeIn>
+
+                  {/* Daily Goals */}
+                  <FadeIn delay={0.7}>
                     <Card>
                       <CardHeader className="pb-3">
                         <CardTitle className="text-lg flex items-center gap-2">

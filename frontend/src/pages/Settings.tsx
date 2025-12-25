@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { User, Bell, Shield, Trash2, Key, Save, Loader2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { User, Bell, Shield, Trash2, Key, Save, Loader2, Upload, Camera } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Sidebar } from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,8 @@ const Settings = () => {
   const [activeTab, setActiveTab] = useState("profile");
   const { user, logout } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Profile form
   const [profileData, setProfileData] = useState({
@@ -74,8 +76,70 @@ const Settings = () => {
         linkedin: "",
       });
       setEmailData(prev => ({ ...prev, email: user.email || "" }));
+      setAvatarPreview(user.avatar || null);
     }
   }, [user]);
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Image size must be less than 5MB");
+        return;
+      }
+
+      // Check file type
+      if (!file.type.startsWith('image/')) {
+        toast.error("Please select an image file");
+        return;
+      }
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleAvatarUpload = async () => {
+    if (!avatarPreview || avatarPreview === user?.avatar) {
+      toast.error("Please select a new image");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001/api"}/settings/avatar`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({ avatar: avatarPreview }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error?.message || "Failed to update avatar");
+      }
+
+      // Update local storage
+      const updatedUser = { ...user, avatar: data.data.avatar };
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      toast.success("Avatar updated successfully");
+      
+      // Reload page to update user context
+      window.location.reload();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update avatar");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -300,14 +364,59 @@ const Settings = () => {
                     </CardHeader>
                     <CardContent className="space-y-6">
                       {/* Avatar */}
-                      <div className="flex items-center gap-4">
-                        <Avatar className="h-20 w-20">
-                          <AvatarImage src={user?.avatar} alt={user?.name} />
-                          <AvatarFallback>{user?.name?.charAt(0).toUpperCase()}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="text-sm font-medium">Profile Picture</p>
-                          <p className="text-xs text-muted-foreground">Avatar is generated from your name</p>
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-6">
+                          <div className="relative group">
+                            <Avatar className="h-24 w-24 ring-4 ring-primary/20">
+                              <AvatarImage src={avatarPreview || user?.avatar} alt={user?.name} />
+                              <AvatarFallback className="text-2xl">{user?.name?.charAt(0).toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            <button
+                              type="button"
+                              onClick={() => fileInputRef.current?.click()}
+                              className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <Camera className="w-6 h-6 text-white" />
+                            </button>
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium mb-2">Profile Picture</p>
+                            <p className="text-xs text-muted-foreground mb-3">
+                              Upload a custom avatar or use the generated one
+                            </p>
+                            <div className="flex gap-2">
+                              <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/*"
+                                onChange={handleAvatarChange}
+                                className="hidden"
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => fileInputRef.current?.click()}
+                              >
+                                <Upload className="w-4 h-4 mr-2" />
+                                Choose Image
+                              </Button>
+                              {avatarPreview && avatarPreview !== user?.avatar && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={handleAvatarUpload}
+                                  disabled={loading}
+                                >
+                                  {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                                  Save Avatar
+                                </Button>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-2">
+                              Max size: 5MB. Supported: JPG, PNG, GIF
+                            </p>
+                          </div>
                         </div>
                       </div>
 

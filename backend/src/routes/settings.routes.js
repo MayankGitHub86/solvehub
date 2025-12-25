@@ -21,8 +21,8 @@ router.put('/password', settingsController.updatePassword);
 // Update notifications
 router.put('/notifications', settingsController.updateNotifications);
 
-// Upload avatar
-router.post('/avatar', settingsController.uploadAvatar);
+// Update avatar
+router.put('/avatar', settingsController.updateAvatar);
 
 // Delete account
 router.delete('/account', settingsController.deleteAccount);

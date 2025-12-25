@@ -4,6 +4,8 @@ const prisma = require('../lib/prisma');
 const { AuthRequest } = require('../middleware/auth');
 const { AppError } = require('../middleware/errorHandler');
 const { notifications } = require('../services/notification.service');
+const achievementService = require('../services/achievement.service');
+const socketService = require('../services/socket.service');
 
 const getAnswersByQuestionId = async (
   req,
@@ -92,10 +94,32 @@ const createAnswer = async (
     });
 
     // Award points to user
-    await prisma.user.update({
+    const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: { points: { increment: 5 } }
     });
+    
+    // Emit real-time point update
+    socketService.notifyUser(userId, 'points:update', {
+      points: updatedUser.points,
+      change: 5
+    });
+    socketService.broadcast('leaderboard:update', { userId, points: updatedUser.points });
+
+    // Check and award badges
+    const earnedBadges = await achievementService.checkAndAwardBadges(userId);
+    
+    // Notify about earned badges
+    if (earnedBadges.length > 0) {
+      for (const badge of earnedBadges) {
+        notifications.notify({
+          type: 'badge',
+          message: `You earned the "${badge.name}" badge! ${badge.icon}`,
+          data: { badgeId: badge.id, badgeName: badge.name, badgeIcon: badge.icon },
+          targetUserId: userId
+        });
+      }
+    }
 
     // Notify question author about new answer
     const question = await prisma.question.findUnique({ where: { id: questionId } });
@@ -106,6 +130,36 @@ const createAnswer = async (
         data: { questionId, answerId: answer.id },
         targetUserId: question.authorId
       });
+    }
+
+    // Extract and notify mentioned users
+    const { extractMentions } = require('../utils/mentions');
+    const mentions = extractMentions(content);
+    
+    if (mentions.length > 0) {
+      // Find mentioned users
+      const mentionedUsers = await prisma.user.findMany({
+        where: {
+          username: { in: mentions }
+        },
+        select: { id: true, username: true }
+      });
+
+      // Notify each mentioned user
+      for (const mentionedUser of mentionedUsers) {
+        if (mentionedUser.id !== userId) { // Don't notify self
+          notifications.notify({
+            type: 'mention',
+            message: `${answer.author.name} mentioned you in an answer`,
+            data: { 
+              questionId,
+              answerId: answer.id,
+              mentionedBy: answer.author.name
+            },
+            targetUserId: mentionedUser.id
+          });
+        }
+      }
     }
 
     res.status(201).json({

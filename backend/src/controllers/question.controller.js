@@ -4,6 +4,7 @@ const prisma = require('../lib/prisma');
 const { AuthRequest } = require('../middleware/auth');
 const { AppError } = require('../middleware/errorHandler');
 const { notifications } = require('../services/notification.service');
+const achievementService = require('../services/achievement.service');
 
 const getAllQuestions = async (
   req,
@@ -384,6 +385,51 @@ const createQuestion = async (
       message: 'New question posted',
       data: { id: question.id, title: question.title, author: question.author }
     });
+
+    // Extract and notify mentioned users
+    const { extractMentions } = require('../utils/mentions');
+    const mentions = extractMentions(content);
+    
+    if (mentions.length > 0) {
+      // Find mentioned users
+      const mentionedUsers = await prisma.user.findMany({
+        where: {
+          username: { in: mentions }
+        },
+        select: { id: true, username: true }
+      });
+
+      // Notify each mentioned user
+      for (const mentionedUser of mentionedUsers) {
+        if (mentionedUser.id !== userId) { // Don't notify self
+          notifications.notify({
+            type: 'mention',
+            message: `${question.author.name} mentioned you in a question`,
+            data: { 
+              questionId: question.id, 
+              questionTitle: question.title,
+              mentionedBy: question.author.name
+            },
+            targetUserId: mentionedUser.id
+          });
+        }
+      }
+    }
+
+    // Check and award badges
+    const earnedBadges = await achievementService.checkAndAwardBadges(userId);
+    
+    // Notify about earned badges
+    if (earnedBadges.length > 0) {
+      for (const badge of earnedBadges) {
+        notifications.notify({
+          type: 'badge',
+          message: `You earned the "${badge.name}" badge! ${badge.icon}`,
+          data: { badgeId: badge.id, badgeName: badge.name, badgeIcon: badge.icon },
+          targetUserId: userId
+        });
+      }
+    }
 
     res.status(201).json({
       success: true,

@@ -1,3 +1,5 @@
+const socketService = require('./socket.service');
+
 class NotificationService {
   constructor() {
     this.clients = [];
@@ -22,6 +24,14 @@ class NotificationService {
   }
 
   notify(event) {
+    // Send via Socket.IO if available
+    if (event.targetUserId) {
+      socketService.notifyUser(event.targetUserId, 'notification', event);
+    } else {
+      socketService.broadcast('notification', event);
+    }
+
+    // Fallback to SSE for backwards compatibility
     const payload = `data: ${JSON.stringify(event)}\n\n`;
     const targets = event.targetUserId
       ? this.clients.filter((c) => c.userId === event.targetUserId)
