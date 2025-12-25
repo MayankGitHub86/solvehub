@@ -8,6 +8,20 @@ export const initiateGoogleOAuth = () => {
   const responseType = 'code';
   const state = Math.random().toString(36).substring(7);
   
+  // Debug logging
+  console.log('🔍 Google OAuth Debug:', {
+    clientId: clientId ? `${clientId.substring(0, 20)}...` : 'UNDEFINED',
+    redirectUri,
+    hasClientId: !!clientId
+  });
+  
+  // Check if client ID is available
+  if (!clientId) {
+    console.error('❌ VITE_GOOGLE_CLIENT_ID is not set!');
+    alert('Google OAuth is not configured. Please check environment variables.');
+    return;
+  }
+  
   // Store state for verification
   sessionStorage.setItem('google_oauth_state', state);
   
@@ -19,6 +33,8 @@ export const initiateGoogleOAuth = () => {
   authUrl.searchParams.append('state', state);
   authUrl.searchParams.append('access_type', 'online');
   authUrl.searchParams.append('prompt', 'select_account');
+  
+  console.log('✅ Redirecting to Google OAuth...');
   
   // Redirect to Google OAuth
   window.location.href = authUrl.toString();
