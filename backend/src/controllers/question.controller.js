@@ -5,6 +5,7 @@ const { AuthRequest } = require('../middleware/auth');
 const { AppError } = require('../middleware/errorHandler');
 const { notifications } = require('../services/notification.service');
 const achievementService = require('../services/achievement.service');
+const { moderateQuestion, logModerationAction } = require('../utils/contentModeration');
 
 const getAllQuestions = async (
   req,
@@ -329,6 +330,25 @@ const createQuestion = async (
     const { title, content, tags } = req.body;
     const userId = req.userId;
 
+    // 🛡️ CONTENT MODERATION - Check for inappropriate content
+    const moderationResult = moderateQuestion({ title, content });
+    
+    if (!moderationResult.allowed) {
+      // Log the moderation action
+      logModerationAction(userId, 'question', moderationResult);
+      
+      // Return error to user
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: moderationResult.reason,
+          field: moderationResult.field,
+          code: 'CONTENT_MODERATION_FAILED',
+          severity: moderationResult.severity
+        }
+      });
+    }
+
     // Generate preview (first 200 chars)
     const preview = content.substring(0, 200);
 
@@ -514,15 +534,56 @@ const deleteQuestion = async (
       throw new AppError('Unauthorized', 403);
     }
 
-    await prisma.question.delete({
-      where: { id }
-    });
+    // Delete related records first (cascade delete)
+    await prisma.$transaction([
+      // Delete votes on answers
+      prisma.vote.deleteMany({
+        where: {
+          answer: {
+            questionId: id
+          }
+        }
+      }),
+      // Delete votes on question
+      prisma.vote.deleteMany({
+        where: { questionId: id }
+      }),
+      // Delete comments on answers
+      prisma.comment.deleteMany({
+        where: {
+          answer: {
+            questionId: id
+          }
+        }
+      }),
+      // Delete comments on question
+      prisma.comment.deleteMany({
+        where: { questionId: id }
+      }),
+      // Delete saved questions
+      prisma.savedQuestion.deleteMany({
+        where: { questionId: id }
+      }),
+      // Delete answers
+      prisma.answer.deleteMany({
+        where: { questionId: id }
+      }),
+      // Delete question tags
+      prisma.questionTag.deleteMany({
+        where: { questionId: id }
+      }),
+      // Finally delete the question
+      prisma.question.delete({
+        where: { id }
+      })
+    ]);
 
     res.json({
       success: true,
       message: 'Question deleted successfully'
     });
   } catch (error) {
+    console.error('Error deleting question:', error);
     next(error);
   }
 };

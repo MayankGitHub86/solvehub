@@ -339,12 +339,105 @@ const getSavedQuestions = async (
   }
 };
 
+const getUserQuestions = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const { id } = req.params;
+    const { page = 1, limit = 20, sort = 'recent' } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+
+    // Determine sort order
+    let orderBy = { createdAt: 'desc' };
+    if (sort === 'votes') {
+      orderBy = { votes: 'desc' };
+    } else if (sort === 'views') {
+      orderBy = { views: 'desc' };
+    }
+
+    const [questions, total] = await Promise.all([
+      prisma.question.findMany({
+        where: { authorId: id },
+        skip,
+        take: Number(limit),
+        orderBy,
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              avatar: true
+            }
+          },
+          tags: {
+            include: {
+              tag: true
+            }
+          },
+          answers: {
+            select: {
+              id: true,
+              isAccepted: true
+            }
+          },
+          _count: {
+            select: {
+              answers: true,
+              comments: true
+            }
+          }
+        }
+      }),
+      prisma.question.count({
+        where: { authorId: id }
+      })
+    ]);
+
+    // Calculate votes for each question
+    const questionsWithVotes = await Promise.all(
+      questions.map(async (question) => {
+        const votes = await prisma.vote.findMany({
+          where: { questionId: question.id }
+        });
+        
+        const voteCount = votes.reduce((acc, vote) => {
+          return acc + (vote.type === 'UPVOTE' ? 1 : -1);
+        }, 0);
+
+        return {
+          ...question,
+          votes: voteCount
+        };
+      })
+    );
+
+    res.json({
+      success: true,
+      data: {
+        questions: questionsWithVotes,
+        pagination: {
+          page: Number(page),
+          limit: Number(limit),
+          total,
+          totalPages: Math.ceil(total / Number(limit))
+        }
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAllUsers,
   searchUsers,
   getLeaderboard,
   getUserById,
   getUserStats,
+  getUserQuestions,
   updateUser,
   getSavedQuestions
 };

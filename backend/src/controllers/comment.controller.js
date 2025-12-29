@@ -4,6 +4,7 @@ const prisma = require('../lib/prisma');
 const { AuthRequest } = require('../middleware/auth');
 const { AppError } = require('../middleware/errorHandler');
 const { notifications } = require('../services/notification.service');
+const { moderateComment, logModerationAction } = require('../utils/contentModeration');
 
 const createComment = async (
   req,
@@ -21,6 +22,24 @@ const createComment = async (
 
     if (!questionId && !answerId) {
       throw new AppError('Either questionId or answerId is required', 400);
+    }
+
+    // 🛡️ CONTENT MODERATION - Check for inappropriate content
+    const moderationResult = moderateComment(content);
+    
+    if (!moderationResult.allowed) {
+      // Log the moderation action
+      logModerationAction(userId, 'comment', moderationResult);
+      
+      // Return error to user
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: moderationResult.reason,
+          code: 'CONTENT_MODERATION_FAILED',
+          severity: moderationResult.severity
+        }
+      });
     }
 
     const comment = await prisma.comment.create({

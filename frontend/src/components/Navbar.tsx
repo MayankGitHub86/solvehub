@@ -7,6 +7,7 @@ import { NotificationPanel } from "@/components/NotificationPanel";
 import { AskQuestionDialog } from "@/components/AskQuestionDialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcutsDialog";
+import { ConnectionStatus } from "@/components/ConnectionStatus";
 import { useGlobalKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import {
   DropdownMenu,
@@ -173,6 +174,9 @@ export function Navbar() {
 
               {/* Notifications */}
               <NotificationPanel />
+
+              {/* Connection Status */}
+              <ConnectionStatus />
 
               {/* Keyboard Shortcuts Button */}
               <Button

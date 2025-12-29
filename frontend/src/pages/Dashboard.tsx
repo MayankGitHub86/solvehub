@@ -9,6 +9,7 @@ import { DailyChallenges } from "@/components/DailyChallenges";
 import { ReputationGraph } from "@/components/ReputationGraph";
 import { StreakCounter } from "@/components/StreakCounter";
 import { ActivityFeed } from "@/components/ActivityFeed";
+import { LiveActivityFeed } from "@/components/LiveActivityFeed";
 import { useAuth } from "@/context/auth";
 import { useNavigate } from "react-router-dom";
 import { 
@@ -125,24 +126,32 @@ const Dashboard = () => {
       value: userStats?.points || user.points || 0,
       icon: Award,
       color: "text-yellow-500",
+      link: "/leaderboard",
+      hint: "View leaderboard",
     },
     {
       label: "Questions Asked",
       value: userStats?.questionsAsked || 0,
       icon: MessageSquare,
       color: "text-blue-500",
+      link: "/my-questions",
+      hint: "View your questions",
     },
     {
       label: "Answers Given",
       value: userStats?.answersGiven || 0,
       icon: MessageSquare,
       color: "text-green-500",
+      link: `/users/${user.username}`,
+      hint: "View your profile",
     },
     {
       label: "Saved Items",
       value: userStats?.savedItems || 0,
       icon: Bookmark,
       color: "text-purple-500",
+      link: "/saved",
+      hint: "View saved items",
     },
   ];
 
@@ -179,11 +188,13 @@ const Dashboard = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {stats.map((stat, index) => {
                     const Icon = stat.icon;
+                    
                     return (
                       <StaggerItem key={stat.label}>
                         <motion.div
                           whileHover={{ scale: 1.02, y: -2 }}
-                          className="glass rounded-xl p-4 cursor-pointer"
+                          onClick={() => navigate(stat.link)}
+                          className="glass rounded-xl p-4 cursor-pointer hover:border-primary/50 transition-all"
                         >
                           <div className="flex items-center justify-between mb-2">
                             <Icon className={`h-5 w-5 ${stat.color}`} />
@@ -192,6 +203,7 @@ const Dashboard = () => {
                             </Badge>
                           </div>
                           <p className="text-xs text-muted-foreground">{stat.label}</p>
+                          <p className="text-[10px] text-primary mt-1">{stat.hint} →</p>
                         </motion.div>
                       </StaggerItem>
                     );
@@ -315,6 +327,11 @@ const Dashboard = () => {
                   {/* Activity Feed */}
                   <FadeIn delay={0.6}>
                     <ActivityFeed limit={10} />
+                  </FadeIn>
+
+                  {/* Live Activity Feed */}
+                  <FadeIn delay={0.65}>
+                    <LiveActivityFeed />
                   </FadeIn>
 
                   {/* Daily Goals */}

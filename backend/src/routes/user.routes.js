@@ -9,6 +9,7 @@ router.get('/search', userController.searchUsers);
 router.get('/leaderboard', userController.getLeaderboard);
 router.get('/:id', userController.getUserById);
 router.get('/:id/stats', userController.getUserStats);
+router.get('/:id/questions', userController.getUserQuestions);
 router.get('/:id/saved', authenticate, userController.getSavedQuestions);
 router.put('/:id', authenticate, userController.updateUser);
 

@@ -105,6 +105,44 @@ export function useSocket(options: UseSocketOptions = {}) {
     socketRef.current?.emit('typing:stop', { questionId });
   };
 
+  // Emit vote cast
+  const emitVote = (data: {
+    questionId: string;
+    targetId: string;
+    targetType: 'question' | 'answer';
+    voteCount: number;
+  }) => {
+    socketRef.current?.emit('vote:cast', data);
+  };
+
+  // Emit answer submission
+  const emitAnswer = (questionId: string, answer: any) => {
+    socketRef.current?.emit('answer:submit', { questionId, answer });
+  };
+
+  // Emit comment submission
+  const emitComment = (data: {
+    questionId: string;
+    targetId: string;
+    targetType: 'question' | 'answer';
+    comment: any;
+  }) => {
+    socketRef.current?.emit('comment:submit', data);
+  };
+
+  // Emit question update
+  const emitQuestionUpdate = (questionId: string, question: any) => {
+    socketRef.current?.emit('question:update', { questionId, question });
+  };
+
+  // Emit activity
+  const emitActivity = (activity: {
+    type: 'answer' | 'vote' | 'comment' | 'badge' | 'question';
+    message: string;
+  }) => {
+    socketRef.current?.emit('activity:broadcast', activity);
+  };
+
   return {
     socket: socketRef.current,
     isConnected,
@@ -115,5 +153,10 @@ export function useSocket(options: UseSocketOptions = {}) {
     leaveConversation,
     startTyping,
     stopTyping,
+    emitVote,
+    emitAnswer,
+    emitComment,
+    emitQuestionUpdate,
+    emitActivity,
   };
 }

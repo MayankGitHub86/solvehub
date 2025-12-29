@@ -15,19 +15,68 @@ class ContactController {
         });
       }
 
-      // Create email transporter (using Gmail as example)
-      // For production, use environment variables for credentials
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ 
+          error: 'Invalid email format' 
+        });
+      }
+
+      // Log the contact form submission
+      console.log('\n📧 ===== NEW CONTACT FORM SUBMISSION =====');
+      console.log(`Name: ${name}`);
+      console.log(`Email: ${email}`);
+      console.log(`Subject: ${subject}`);
+      console.log(`Message: ${message}`);
+      console.log(`Date: ${new Date().toLocaleString()}`);
+      console.log('==========================================\n');
+
+      // Check if email credentials are configured properly
+      const hasValidPassword = process.env.EMAIL_PASSWORD && 
+                              process.env.EMAIL_PASSWORD !== 'your_16_char_app_password_here' &&
+                              process.env.EMAIL_PASSWORD.length === 16;
+
+      if (!process.env.EMAIL_USER || !hasValidPassword) {
+        console.log('⚠️  Email not configured. Contact form data saved to logs above.');
+        console.log('💡 To enable email: Generate Gmail App Password at https://myaccount.google.com/apppasswords');
+        
+        // Return success even without email
+        return res.json({ 
+          success: true,
+          message: 'Message received! We will get back to you soon.',
+          note: 'Contact saved to server logs. Email will be sent once configured.'
+        });
+      }
+
+      // Create email transporter
       const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
-          user: process.env.EMAIL_USER || 'your-email@gmail.com',
-          pass: process.env.EMAIL_PASSWORD || 'your-app-password',
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASSWORD,
         },
       });
 
+      // Verify transporter configuration
+      try {
+        await transporter.verify();
+        console.log('✅ Email transporter verified successfully');
+      } catch (verifyError) {
+        console.error('❌ Email transporter verification failed:', verifyError.message);
+        console.log('⚠️  Saving contact to logs instead.');
+        
+        // Return success even if email fails
+        return res.json({ 
+          success: true,
+          message: 'Message received! We will get back to you soon.',
+          note: 'Contact saved to server logs. Email configuration needs attention.'
+        });
+      }
+
       // Email content
       const mailOptions = {
-        from: process.env.EMAIL_USER || 'noreply@solvehub.com',
+        from: process.env.EMAIL_USER,
         to: 'pandeymp8602@gmail.com',
         subject: `[SolveHub Contact] ${subject}`,
         html: `
@@ -37,6 +86,7 @@ class ContactController {
               <p><strong>Name:</strong> ${name}</p>
               <p><strong>Email:</strong> ${email}</p>
               <p><strong>Subject:</strong> ${subject}</p>
+              <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
             </div>
             <div style="background: #ffffff; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
               <h3 style="margin-top: 0;">Message:</h3>
@@ -52,21 +102,24 @@ class ContactController {
       };
 
       // Send email
-      await transporter.sendMail(mailOptions);
+      const info = await transporter.sendMail(mailOptions);
+      console.log('✅ Email sent successfully:', info.messageId);
 
       res.json({ 
         success: true,
-        message: 'Message sent successfully!' 
+        message: 'Message sent successfully! We will get back to you soon.' 
       });
     } catch (error) {
-      console.error('Error sending contact email:', error);
+      console.error('❌ Error sending contact email:', error);
       
-      // For development, still return success even if email fails
-      // In production, you'd want to handle this properly
+      // Log the contact anyway
+      console.log('⚠️  Contact form data saved to logs (email failed)');
+      
+      // Return success to user (contact is logged)
       res.json({ 
         success: true,
         message: 'Message received! We will get back to you soon.',
-        note: 'Email service not configured. Contact saved to logs.'
+        note: 'Contact saved to server logs.'
       });
     }
   }
@@ -84,19 +137,42 @@ class ContactController {
         });
       }
 
-      // Here you would typically save to database or mailing list service
-      // For now, just send notification email
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ 
+          error: 'Invalid email format' 
+        });
+      }
+
+      // Check if email credentials are configured
+      if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+        console.error('Email credentials not configured in .env file');
+        return res.status(500).json({ 
+          error: 'Email service not configured. Please contact administrator.' 
+        });
+      }
       
       const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
-          user: process.env.EMAIL_USER || 'your-email@gmail.com',
-          pass: process.env.EMAIL_PASSWORD || 'your-app-password',
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASSWORD,
         },
       });
 
+      // Verify transporter
+      try {
+        await transporter.verify();
+      } catch (verifyError) {
+        console.error('❌ Email transporter verification failed:', verifyError.message);
+        return res.status(500).json({ 
+          error: 'Email service configuration error.' 
+        });
+      }
+
       const mailOptions = {
-        from: process.env.EMAIL_USER || 'noreply@solvehub.com',
+        from: process.env.EMAIL_USER,
         to: 'pandeymp8602@gmail.com',
         subject: '[SolveHub] New Newsletter Subscription',
         html: `
@@ -111,18 +187,24 @@ class ContactController {
       };
 
       await transporter.sendMail(mailOptions);
+      console.log('✅ Newsletter subscription email sent');
 
       res.json({ 
         success: true,
         message: 'Subscribed successfully!' 
       });
     } catch (error) {
-      console.error('Error subscribing to newsletter:', error);
+      console.error('❌ Error subscribing to newsletter:', error);
       
-      res.json({ 
-        success: true,
-        message: 'Subscribed successfully!',
-        note: 'Email service not configured. Subscription saved to logs.'
+      let errorMessage = 'Failed to subscribe. Please try again later.';
+      
+      if (error.code === 'EAUTH') {
+        errorMessage = 'Email authentication failed. Please contact administrator.';
+      }
+      
+      res.status(500).json({ 
+        success: false,
+        error: errorMessage
       });
     }
   }

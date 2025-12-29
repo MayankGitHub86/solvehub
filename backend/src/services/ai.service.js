@@ -186,7 +186,26 @@ Focus on: programming languages, frameworks, libraries, concepts, and technologi
       
       if (this.provider === 'gemini') {
         tagsString = await this.callGemini(prompt);
+      } else if (this.provider === 'sambanova') {
+        // Use SambaNova (OpenAI-compatible)
+        const completion = await this.sambanova.chat.completions.create({
+          model: 'Meta-Llama-3.1-8B-Instruct',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a tag suggestion system. Analyze questions and return only relevant programming tags as a comma-separated list.',
+            },
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          max_tokens: 100,
+          temperature: 0.3,
+        });
+        tagsString = completion.choices[0].message.content.trim();
       } else {
+        // Use OpenAI
         const completion = await this.openai.chat.completions.create({
           model: 'gpt-3.5-turbo',
           messages: [
@@ -240,23 +259,46 @@ ${questionsText}
 
 Which 3 existing questions are most similar? Return only the numbers (e.g., "1, 5, 8").`;
 
-      const completion = await this.openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a similarity detection system. Find the most similar questions based on topic and intent.',
-          },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        max_tokens: 50,
-        temperature: 0.3,
-      });
+      let response;
+      
+      if (this.provider === 'sambanova') {
+        const completion = await this.sambanova.chat.completions.create({
+          model: 'Meta-Llama-3.1-8B-Instruct',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a similarity detection system. Find the most similar questions based on topic and intent.',
+            },
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          max_tokens: 50,
+          temperature: 0.3,
+        });
+        response = completion.choices[0].message.content.trim();
+      } else if (this.provider === 'gemini') {
+        response = await this.callGemini(prompt);
+      } else {
+        const completion = await this.openai.chat.completions.create({
+          model: 'gpt-3.5-turbo',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a similarity detection system. Find the most similar questions based on topic and intent.',
+            },
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          max_tokens: 50,
+          temperature: 0.3,
+        });
+        response = completion.choices[0].message.content.trim();
+      }
 
-      const response = completion.choices[0].message.content.trim();
       const indices = response
         .split(',')
         .map(n => parseInt(n.trim()) - 1)
@@ -315,23 +357,46 @@ Provide:
 
 Format as JSON: {"title": "...", "content": "..."}`;
 
-      const completion = await this.openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a question improvement assistant. Help developers write better questions that are clear, specific, and likely to get helpful answers.',
-          },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        max_tokens: 500,
-        temperature: 0.7,
-      });
+      let response;
+      
+      if (this.provider === 'sambanova') {
+        const completion = await this.sambanova.chat.completions.create({
+          model: 'Meta-Llama-3.1-8B-Instruct',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a question improvement assistant. Help developers write better questions that are clear, specific, and likely to get helpful answers.',
+            },
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          max_tokens: 500,
+          temperature: 0.7,
+        });
+        response = completion.choices[0].message.content.trim();
+      } else if (this.provider === 'gemini') {
+        response = await this.callGemini(prompt);
+      } else {
+        const completion = await this.openai.chat.completions.create({
+          model: 'gpt-3.5-turbo',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a question improvement assistant. Help developers write better questions that are clear, specific, and likely to get helpful answers.',
+            },
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          max_tokens: 500,
+          temperature: 0.7,
+        });
+        response = completion.choices[0].message.content.trim();
+      }
 
-      const response = completion.choices[0].message.content.trim();
       // Try to parse JSON, fallback to original if fails
       try {
         const improved = JSON.parse(response);

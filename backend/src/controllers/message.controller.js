@@ -233,15 +233,38 @@ exports.sendMessage = asyncHandler(async (req, res) => {
     select: { id: true, name: true, username: true, avatar: true },
   });
 
-  // Emit real-time message to other user
+  // Get recipient ID
   const recipientId =
     conversation.participant1Id === currentUserId
       ? conversation.participant2Id
       : conversation.participant1Id;
 
-  socketService.emitNotification(recipientId, {
+  // Create notification in database
+  try {
+    await prisma.notification.create({
+      data: {
+        userId: recipientId,
+        type: 'message',
+        title: 'New Message',
+        message: `${sender.name} sent you a message`,
+        link: `/messages?conversation=${conversationId}`,
+        metadata: {
+          conversationId,
+          senderId: currentUserId,
+          senderName: sender.name,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Error creating notification:', error);
+  }
+
+  // Emit real-time notification via Socket.IO
+  socketService.notifyUser(recipientId, 'notification', {
     type: 'message',
-    message: `New message from ${sender.name}`,
+    title: 'New Message',
+    message: `${sender.name} sent you a message`,
+    link: `/messages?conversation=${conversationId}`,
     data: {
       conversationId,
       message: {

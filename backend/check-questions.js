@@ -2,35 +2,32 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function checkQuestions() {
-  try {
+  const count = await prisma.question.count();
+  console.log('📊 Total questions in database:', count);
+  
+  if (count === 0) {
+    console.log('⚠️  No questions found! Database was cleared.');
+    console.log('💡 Run: npm run prisma:seed:indian to add sample questions');
+  } else {
     const questions = await prisma.question.findMany({
-      take: 10,
+      take: 5,
       select: {
         id: true,
         title: true,
-        author: {
-          select: {
-            name: true
-          }
-        }
-      }
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
     });
-
-    console.log(`\n📊 Found ${questions.length} questions in database:\n`);
+    
+    console.log('\n📝 Recent questions:');
     questions.forEach((q, i) => {
-      console.log(`${i + 1}. ID: ${q.id}`);
-      console.log(`   Title: ${q.title}`);
-      console.log(`   Author: ${q.author.name}\n`);
+      console.log(`${i + 1}. ${q.title}`);
     });
-
-    if (questions.length === 0) {
-      console.log('⚠️  No questions found! Run: npm run prisma:seed:indian');
-    }
-  } catch (error) {
-    console.error('❌ Error:', error.message);
-  } finally {
-    await prisma.$disconnect();
   }
+  
+  await prisma.$disconnect();
 }
 
 checkQuestions();

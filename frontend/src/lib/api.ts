@@ -543,6 +543,47 @@ class ApiService {
   async getUserAnswers(userId: string) {
     return this.request(`/users/${userId}/answers`);
   }
+
+  // Notifications
+  async getNotifications(page = 1, limit = 20) {
+    return this.request(`/notifications?page=${page}&limit=${limit}`, {
+      requiresAuth: true,
+    });
+  }
+
+  async getUnreadNotificationCount() {
+    return this.request('/notifications/unread-count', {
+      requiresAuth: true,
+    });
+  }
+
+  async markNotificationAsRead(notificationId: string) {
+    return this.request(`/notifications/${notificationId}/read`, {
+      method: 'PUT',
+      requiresAuth: true,
+    });
+  }
+
+  async markAllNotificationsAsRead() {
+    return this.request('/notifications/read-all', {
+      method: 'PUT',
+      requiresAuth: true,
+    });
+  }
+
+  async deleteNotification(notificationId: string) {
+    return this.request(`/notifications/${notificationId}`, {
+      method: 'DELETE',
+      requiresAuth: true,
+    });
+  }
+
+  async deleteAllNotifications() {
+    return this.request('/notifications', {
+      method: 'DELETE',
+      requiresAuth: true,
+    });
+  }
 }
 
 export const api = new ApiService();

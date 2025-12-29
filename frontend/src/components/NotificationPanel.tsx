@@ -2,19 +2,43 @@ import { Bell, X, Clock } from "lucide-react";
 import { useNotificationStore } from "@/lib/notification-store";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSocket } from "@/hooks/useSocket";
 
 export function NotificationPanel() {
-  const { notifications, markAsRead, clearAll, unreadCount } = useNotificationStore();
+  const { notifications, markAsRead, markAllAsRead, clearAll, unreadCount, fetchNotifications, addNotification } = useNotificationStore();
   const [isOpen, setIsOpen] = useState(false);
   const unread = unreadCount();
 
+  // Set up socket connection to receive real-time notifications
+  useSocket({
+    onNotification: (data) => {
+      console.log('📬 Real-time notification received:', data);
+      // Add notification to store
+      addNotification({
+        type: data.type,
+        title: data.title,
+        message: data.message,
+        link: data.link,
+        data: data.data,
+      });
+      // Refresh notifications from database to ensure sync
+      fetchNotifications();
+    },
+  });
+
+  // Fetch notifications on mount
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
+
   const typeColors: Record<string, string> = {
-    'question:new': 'bg-blue-500/20 text-blue-400',
-    'answer:new': 'bg-green-500/20 text-green-400',
-    'answer:accepted': 'bg-yellow-500/20 text-yellow-400',
-    'vote:received': 'bg-purple-500/20 text-purple-400',
-    'comment:new': 'bg-pink-500/20 text-pink-400',
+    'message': 'bg-blue-500/20 text-blue-400',
+    'answer': 'bg-green-500/20 text-green-400',
+    'comment': 'bg-pink-500/20 text-pink-400',
+    'vote': 'bg-purple-500/20 text-purple-400',
+    'badge': 'bg-yellow-500/20 text-yellow-400',
+    'follow': 'bg-indigo-500/20 text-indigo-400',
   };
 
   return (
@@ -38,14 +62,24 @@ export function NotificationPanel() {
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-foreground">Notifications</h3>
-            {notifications.length > 0 && (
-              <button
-                onClick={() => clearAll()}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Clear all
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {unread > 0 && (
+                <button
+                  onClick={() => markAllAsRead()}
+                  className="text-xs text-blue-500 hover:text-blue-400 transition-colors"
+                >
+                  Mark all read
+                </button>
+              )}
+              {notifications.length > 0 && (
+                <button
+                  onClick={() => clearAll()}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Notifications List */}
@@ -62,7 +96,7 @@ export function NotificationPanel() {
                   onClick={() => markAsRead(notif.id)}
                   className={cn(
                     "p-3 rounded-xl cursor-pointer transition-all hover:bg-muted/50",
-                    notif.read ? 'opacity-60' : 'bg-primary/10 border border-primary/20'
+                    (notif.read || notif.isRead) ? 'opacity-60' : 'bg-primary/10 border border-primary/20'
                   )}
                 >
                   <div className="flex items-start gap-3">
@@ -71,15 +105,20 @@ export function NotificationPanel() {
                       typeColors[notif.type] || 'bg-muted'
                     )} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground line-clamp-2">
+                      {notif.title && (
+                        <p className="text-sm font-semibold text-foreground mb-0.5">
+                          {notif.title}
+                        </p>
+                      )}
+                      <p className="text-sm text-foreground line-clamp-2">
                         {notif.message}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                         <Clock className="w-3 h-3" />
-                        {formatTime(notif.timestamp)}
+                        {formatTime(notif.timestamp || notif.createdAt)}
                       </p>
                     </div>
-                    {!notif.read && (
+                    {!(notif.read || notif.isRead) && (
                       <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-1" />
                     )}
                   </div>

@@ -15,6 +15,7 @@ import Settings from "./pages/Settings";
 import QuestionDetail from "./pages/QuestionDetail";
 import UserProfile from "./pages/UserProfile";
 import Messages from "./pages/Messages";
+import MyQuestions from "./pages/MyQuestions";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
@@ -47,6 +48,7 @@ const AppContent = () => {
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/explore" element={<ProtectedRoute><Explore /></ProtectedRoute>} />
             <Route path="/questions/:id" element={<ProtectedRoute><QuestionDetail /></ProtectedRoute>} />
+            <Route path="/my-questions" element={<ProtectedRoute><MyQuestions /></ProtectedRoute>} />
             <Route path="/users/:username" element={<UserProfile />} />
             <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
             <Route path="/community" element={<ProtectedRoute><Community /></ProtectedRoute>} />

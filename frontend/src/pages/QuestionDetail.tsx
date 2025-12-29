@@ -13,6 +13,9 @@ import { MarkdownPreview } from "@/components/MarkdownEditor";
 import { AIAnswerSuggestion } from "@/components/AIAnswerSuggestion";
 import { TypingIndicator } from "@/components/TypingIndicator";
 import { CommentSection } from "@/components/CommentSection";
+import { LiveViewers } from "@/components/LiveViewers";
+import { ConnectionStatus } from "@/components/ConnectionStatus";
+import { LiveVoteCounter } from "@/components/LiveVoteCounter";
 import { useSocket } from "@/hooks/useSocket";
 import api from "@/lib/api";
 import { formatDistanceToNow } from "date-fns";
@@ -30,7 +33,16 @@ const QuestionDetail = () => {
   const [answerVotes, setAnswerVotes] = useState<Record<string, number>>({});
   
   // Socket.IO for real-time features
-  const { joinQuestion, leaveQuestion, startTyping, stopTyping } = useSocket();
+  const { 
+    joinQuestion, 
+    leaveQuestion, 
+    startTyping, 
+    stopTyping,
+    emitVote,
+    emitAnswer,
+    socket,
+    isConnected
+  } = useSocket();
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Join question room on mount
@@ -42,6 +54,43 @@ const QuestionDetail = () => {
       };
     }
   }, [id, joinQuestion, leaveQuestion]);
+
+  // Listen for real-time updates
+  useEffect(() => {
+    if (!socket || !isConnected) return;
+
+    // Listen for new answers
+    const handleNewAnswer = (data: any) => {
+      if (data.questionId === id) {
+        queryClient.invalidateQueries({ queryKey: ["question", id] });
+        toast.info("New answer posted!");
+      }
+    };
+
+    // Listen for vote updates
+    const handleVoteUpdate = (data: any) => {
+      if (data.targetType === 'question' && data.targetId === id) {
+        setQuestionVotes(data.voteCount);
+      } else if (data.targetType === 'answer') {
+        setAnswerVotes(prev => ({ ...prev, [data.targetId]: data.voteCount }));
+      }
+    };
+
+    // Listen for new comments
+    const handleNewComment = (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["question", id] });
+    };
+
+    socket.on('answer:new', handleNewAnswer);
+    socket.on('vote:update', handleVoteUpdate);
+    socket.on('comment:new', handleNewComment);
+
+    return () => {
+      socket.off('answer:new', handleNewAnswer);
+      socket.off('vote:update', handleVoteUpdate);
+      socket.off('comment:new', handleNewComment);
+    };
+  }, [socket, isConnected, id, queryClient]);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["question", id],
@@ -141,10 +190,28 @@ const QuestionDetail = () => {
 
   const handleQuestionVote = (value: 1 | -1) => {
     voteQuestionMutation.mutate(value);
+    // Emit real-time vote update
+    if (id) {
+      emitVote({
+        questionId: id,
+        targetId: id,
+        targetType: 'question',
+        voteCount: questionVotes + value,
+      });
+    }
   };
 
   const handleAnswerVote = (answerId: string, value: 1 | -1) => {
     voteAnswerMutation.mutate({ answerId, value });
+    // Emit real-time vote update
+    if (id) {
+      emitVote({
+        questionId: id,
+        targetId: answerId,
+        targetType: 'answer',
+        voteCount: (answerVotes[answerId] || 0) + value,
+      });
+    }
   };
 
   if (isLoading) {
@@ -213,14 +280,20 @@ const QuestionDetail = () => {
           
             <div className="flex-1 min-w-0 space-y-4">
             {/* Back Button */}
-            <Button
-              variant="ghost"
-              onClick={() => navigate(-1)}
-              className="mb-4"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back
-            </Button>
+            <div className="flex items-center justify-between mb-4">
+              <Button
+                variant="ghost"
+                onClick={() => navigate(-1)}
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back
+              </Button>
+              
+              <div className="flex items-center gap-3">
+                <LiveViewers questionId={id!} />
+                <ConnectionStatus />
+              </div>
+            </div>
 
             {/* Question */}
             <div className="glass rounded-2xl p-6 mb-6">
@@ -234,7 +307,12 @@ const QuestionDetail = () => {
                   >
                     <ArrowUp className="w-6 h-6 text-muted-foreground group-hover:text-success transition-colors" />
                   </button>
-                  <span className="text-xl font-semibold">{questionVotes}</span>
+                  <LiveVoteCounter
+                    targetId={id!}
+                    targetType="question"
+                    initialVoteCount={questionVotes}
+                    questionId={id!}
+                  />
                   <button 
                     onClick={() => handleQuestionVote(-1)}
                     disabled={voteQuestionMutation.isPending}

@@ -6,6 +6,7 @@ const { AppError } = require('../middleware/errorHandler');
 const { notifications } = require('../services/notification.service');
 const achievementService = require('../services/achievement.service');
 const socketService = require('../services/socket.service');
+const { moderateAnswer, logModerationAction } = require('../utils/contentModeration');
 
 const getAnswersByQuestionId = async (
   req,
@@ -73,6 +74,24 @@ const createAnswer = async (
 
     const { content, questionId } = req.body;
     const userId = req.userId;
+
+    // 🛡️ CONTENT MODERATION - Check for inappropriate content
+    const moderationResult = moderateAnswer(content);
+    
+    if (!moderationResult.allowed) {
+      // Log the moderation action
+      logModerationAction(userId, 'answer', moderationResult);
+      
+      // Return error to user
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: moderationResult.reason,
+          code: 'CONTENT_MODERATION_FAILED',
+          severity: moderationResult.severity
+        }
+      });
+    }
 
     const answer = await prisma.answer.create({
       data: {
