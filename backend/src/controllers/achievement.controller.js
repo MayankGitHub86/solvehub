@@ -19,7 +19,12 @@ class AchievementController {
    */
   async getUserBadges(req, res) {
     try {
-      const userId = req.params.userId || req.user.id;
+      const userId = req.params.userId || req.userId || req.user?.id;
+      
+      if (!userId) {
+        return res.status(400).json({ error: 'User ID is required' });
+      }
+      
       const badges = await achievementService.getUserBadges(userId);
       res.json(badges);
     } catch (error) {
@@ -33,12 +38,13 @@ class AchievementController {
    */
   async getBadgeProgress(req, res) {
     try {
-      // Check if user is authenticated
-      if (!req.user || !req.user.id) {
+      // Check if user is authenticated (middleware sets req.userId)
+      const userId = req.userId || req.user?.id;
+      
+      if (!userId) {
         return res.status(401).json({ error: 'Authentication required' });
       }
       
-      const userId = req.user.id;
       const progress = await achievementService.getBadgeProgress(userId);
       res.json(progress);
     } catch (error) {
@@ -52,7 +58,12 @@ class AchievementController {
    */
   async checkBadges(req, res) {
     try {
-      const userId = req.user.id;
+      const userId = req.userId || req.user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+      
       const earnedBadges = await achievementService.checkAndAwardBadges(userId);
       res.json({ earnedBadges });
     } catch (error) {

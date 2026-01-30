@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowUp, ArrowDown, MessageCircle, Eye, CheckCircle, ArrowLeft } from "lucide-react";
+import { ArrowUp, ArrowDown, MessageCircle, Eye, CheckCircle, ArrowLeft, Bookmark, BookmarkCheck, FolderPlus } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Sidebar } from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import { CommentSection } from "@/components/CommentSection";
 import { LiveViewers } from "@/components/LiveViewers";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
 import { LiveVoteCounter } from "@/components/LiveVoteCounter";
+import { AddToCollectionDialog } from "@/components/AddToCollectionDialog";
 import { useSocket } from "@/hooks/useSocket";
 import api from "@/lib/api";
 import { formatDistanceToNow } from "date-fns";
@@ -31,6 +32,8 @@ const QuestionDetail = () => {
   const [answerContent, setAnswerContent] = useState("");
   const [questionVotes, setQuestionVotes] = useState(0);
   const [answerVotes, setAnswerVotes] = useState<Record<string, number>>({});
+  const [isSaved, setIsSaved] = useState(false);
+  const [isCollectionDialogOpen, setIsCollectionDialogOpen] = useState(false);
   
   // Socket.IO for real-time features
   const { 
@@ -185,6 +188,19 @@ const QuestionDetail = () => {
     },
     onError: (error: any) => {
       toast.error(error.message || "Failed to accept answer");
+    },
+  });
+
+  // Save/Unsave question mutation
+  const saveQuestionMutation = useMutation({
+    mutationFn: () => isSaved ? api.unsaveQuestion(id!) : api.saveQuestion(id!),
+    onSuccess: () => {
+      setIsSaved(!isSaved);
+      toast.success(isSaved ? "Removed from saved" : "Saved successfully!");
+      queryClient.invalidateQueries({ queryKey: ["saved-questions"] });
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.error?.message || "Failed to save question");
     },
   });
 
@@ -346,6 +362,40 @@ const QuestionDetail = () => {
                         {tagObj.tag.name}
                       </Badge>
                     ))}
+                  </div>
+
+                  {/* Save and Collection Buttons */}
+                  <div className="flex items-center gap-2 mb-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => saveQuestionMutation.mutate()}
+                      disabled={saveQuestionMutation.isPending || !user}
+                      className="gap-2"
+                    >
+                      {isSaved ? (
+                        <>
+                          <BookmarkCheck className="w-4 h-4" />
+                          Saved
+                        </>
+                      ) : (
+                        <>
+                          <Bookmark className="w-4 h-4" />
+                          Save
+                        </>
+                      )}
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsCollectionDialogOpen(true)}
+                      disabled={!user}
+                      className="gap-2"
+                    >
+                      <FolderPlus className="w-4 h-4" />
+                      Add to Collection
+                    </Button>
                   </div>
 
                   {/* Meta */}
@@ -532,6 +582,13 @@ const QuestionDetail = () => {
           </div>
         </div>
       </main>
+
+      {/* Add to Collection Dialog */}
+      <AddToCollectionDialog
+        open={isCollectionDialogOpen}
+        onOpenChange={setIsCollectionDialogOpen}
+        questionId={id!}
+      />
     </AnimatedPage>
   );
 };

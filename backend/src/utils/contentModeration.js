@@ -83,18 +83,18 @@ function checkInappropriateContent(text) {
 
   // Check for excessive capitalization (spam indicator)
   const capsRatio = (text.match(/[A-Z]/g) || []).length / text.length;
-  if (capsRatio > 0.5 && text.length > 20) {
+  if (capsRatio > 0.7 && text.length > 20) {
     matches.push('EXCESSIVE_CAPS');
   }
 
   // Check for excessive special characters (spam indicator)
   const specialChars = (text.match(/[!@#$%^&*()_+=\[\]{};':"\\|,.<>?]/g) || []).length;
-  if (specialChars > text.length * 0.3) {
+  if (specialChars > text.length * 0.4) {
     matches.push('EXCESSIVE_SPECIAL_CHARS');
   }
 
   // Check for repeated characters (spam indicator)
-  if (/(.)\1{4,}/.test(text)) {
+  if (/(.)\1{6,}/.test(text)) {
     matches.push('REPEATED_CHARACTERS');
   }
 
@@ -179,7 +179,9 @@ function moderateQuestion(questionData) {
 function moderateAnswer(content) {
   const contentCheck = checkInappropriateContent(content);
   
-  if (contentCheck.isInappropriate) {
+  // Only block if severity is high (multiple violations)
+  // Allow medium severity for AI-generated content
+  if (contentCheck.isInappropriate && contentCheck.severity === 'high') {
     return {
       allowed: false,
       reason: 'Answer contains inappropriate content',

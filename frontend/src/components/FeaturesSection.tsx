@@ -103,8 +103,53 @@ export function FeaturesSection() {
   }, [isAutoScrolling]);
 
   return (
-    <section className="py-16 px-4 overflow-hidden">
-      <div className="container mx-auto max-w-7xl">
+    <section className="relative py-16 px-4 overflow-hidden">
+      {/* Blue Tech Background */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-35"
+        style={{
+          backgroundImage: `url('/assets/blue-tech-bg.jpg')`,
+          backgroundBlendMode: 'overlay'
+        }}
+      />
+      
+      {/* Dark overlay for better text readability */}
+      <div className="absolute inset-0 bg-gradient-to-b from-background/90 via-background/70 to-background/90" />
+      
+      {/* Animated particles effect */}
+      <div className="absolute inset-0 pointer-events-none">
+        <motion.div 
+          className="absolute top-1/4 left-1/6 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl"
+          animate={{ 
+            scale: [1, 1.3, 1],
+            opacity: [0.2, 0.4, 0.2],
+            x: [0, 20, 0],
+            y: [0, -10, 0]
+          }}
+          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div 
+          className="absolute top-3/4 right-1/6 w-24 h-24 bg-cyan-500/10 rounded-full blur-2xl"
+          animate={{ 
+            scale: [1.2, 1, 1.2],
+            opacity: [0.3, 0.2, 0.3],
+            x: [0, -15, 0],
+            y: [0, 15, 0]
+          }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+        />
+        <motion.div 
+          className="absolute top-1/2 left-1/2 w-16 h-16 bg-purple-500/10 rounded-full blur-xl"
+          animate={{ 
+            scale: [1, 1.5, 1],
+            opacity: [0.1, 0.3, 0.1],
+            rotate: [0, 180, 360]
+          }}
+          transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+        />
+      </div>
+      
+      <div className="container mx-auto max-w-7xl relative z-10">
         <div className="text-center mb-12">
           <motion.h2 
             className="text-3xl md:text-4xl font-bold mb-4"

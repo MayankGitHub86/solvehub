@@ -14,12 +14,21 @@ export default function Badges() {
 
   // Fetch badge progress for current user
   const { data: badgeProgress, isLoading } = useQuery({
-    queryKey: ["badge-progress"],
+    queryKey: ["badge-progress", user?.id],
     queryFn: async () => {
-      const response = await api.getBadgeProgress();
-      return response;
+      try {
+        const response = await api.getBadgeProgress();
+        return response;
+      } catch (error: any) {
+        // If unauthorized, return empty array
+        if (error?.response?.status === 401) {
+          return [];
+        }
+        throw error;
+      }
     },
     enabled: !!user,
+    retry: false,
   });
 
   const categories = [
@@ -42,6 +51,9 @@ export default function Badges() {
     ?.filter((b: any) => b.earned)
     .reduce((sum: number, b: any) => sum + b.points, 0) || 0;
 
+  // Show message if not logged in
+  const showLoginMessage = !user || !badgeProgress || badgeProgress.length === 0;
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -55,6 +67,13 @@ export default function Badges() {
           <p className="text-muted-foreground">
             Earn badges by contributing to the community and completing challenges
           </p>
+          {!user && (
+            <div className="mt-4 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+              <p className="text-sm text-yellow-600 dark:text-yellow-400">
+                Please log in to track your badge progress and earn achievements
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Stats */}
@@ -127,6 +146,17 @@ export default function Badges() {
               />
             ))}
           </div>
+        ) : showLoginMessage ? (
+          <div className="text-center py-12">
+            <Award className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+            <p className="text-lg font-semibold mb-2">Login to View Your Badges</p>
+            <p className="text-muted-foreground mb-4">
+              Track your progress and earn achievements by logging in
+            </p>
+            <Button onClick={() => window.location.href = '/login'}>
+              Log In
+            </Button>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredBadges?.map((badge: any) => (
@@ -148,7 +178,7 @@ export default function Badges() {
           </div>
         )}
 
-        {filteredBadges?.length === 0 && (
+        {filteredBadges?.length === 0 && !showLoginMessage && (
           <div className="text-center py-12">
             <Award className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
             <p className="text-muted-foreground">No badges in this category yet</p>
