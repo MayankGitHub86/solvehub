@@ -4,9 +4,8 @@
   "description": "SolveHub - Full-stack deployment on Vercel",
   "main": "index.js",
   "scripts": {
-    "postinstall": "prisma generate",
     "dev": "vercel dev",
-    "build": "prisma generate && cd frontend && npm run build",
+    "build": "npx prisma generate && cd frontend && npm run build",
     "start": "vercel --prod"
   },
   "dependencies": {

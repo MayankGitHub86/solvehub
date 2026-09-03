@@ -1,5 +1,5 @@
 {
-  "buildCommand": "prisma generate && cd frontend && npm install && npm run build",
+  "buildCommand": "npx prisma generate && cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
   "installCommand": "npm install",
   "rewrites": [
@@ -8,7 +8,7 @@
       "destination": "/api/$1"
     },
     {
-      "source": "/((?!api/).*)",
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ]
