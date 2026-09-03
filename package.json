@@ -1,0 +1,21 @@
+{
+  "name": "lumina-share-vercel",
+  "version": "1.0.0",
+  "description": "SolveHub - Full-stack deployment on Vercel",
+  "main": "index.js",
+  "scripts": {
+    "postinstall": "prisma generate",
+    "dev": "vercel dev",
+    "build": "prisma generate && cd frontend && npm run build",
+    "start": "vercel --prod"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.7.1",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "prisma": "^5.7.1"
+  },
+  "keywords": ["vercel", "serverless", "prisma", "react"],
+  "author": "",
+  "license": "MIT"
+}

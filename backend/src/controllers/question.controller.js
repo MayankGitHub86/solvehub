@@ -1,0 +1,688 @@
+const { Request, Response, NextFunction } = require('express');
+const { validationResult } = require('express-validator');
+const prisma = require('../lib/prisma');
+const { AuthRequest } = require('../middleware/auth');
+const { AppError } = require('../middleware/errorHandler');
+const { notifications } = require('../services/notification.service');
+const achievementService = require('../services/achievement.service');
+const { moderateQuestion, logModerationAction } = require('../utils/contentModeration');
+
+const getAllQuestions = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const { page = 1, limit = 20, category, search, sort = 'recent' } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+
+    let orderBy = { createdAt: 'desc' };
+    // For votes and views, we'll sort after fetching since we calculate votes dynamically
+    const sortField = sort;
+    if (sort === 'recent') {
+      orderBy = { createdAt: 'desc' };
+    } else if (sort === 'views') {
+      orderBy = { views: 'desc' };
+    }
+
+    const where = {};
+    
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { content: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+
+    if (category && category !== 'all') {
+      where.tags = {
+        some: {
+          tag: {
+            name: { equals: category, mode: 'insensitive' }
+          }
+        }
+      };
+    }
+
+    const [questions, total] = await Promise.all([
+      prisma.question.findMany({
+        where,
+        skip,
+        take: Number(limit),
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              avatar: true
+            }
+          },
+          tags: {
+            include: {
+              tag: true
+            }
+          },
+          _count: {
+            select: {
+              answers: true,
+              votes: true,
+              comments: true
+            }
+          }
+        },
+        orderBy
+      }),
+      prisma.question.count({ where })
+    ]);
+
+    const formattedQuestions = await Promise.all(questions.map(async q => {
+      // Calculate actual vote score (upvotes - downvotes)
+      const voteScore = await prisma.vote.aggregate({
+        where: { questionId: q.id },
+        _sum: { value: true }
+      });
+      
+      return {
+        id: q.id,
+        title: q.title,
+        preview: q.preview,
+        author: q.author,
+        tags: q.tags.map(t => t.tag.name),
+        votes: voteScore._sum.value || 0,
+        answers: q._count.answers,
+        views: q.views,
+        isSolved: q.isSolved,
+        createdAt: q.createdAt
+      };
+    }));
+
+    // Sort by votes if requested (after calculating vote scores)
+    if (sortField === 'votes') {
+      formattedQuestions.sort((a, b) => b.votes - a.votes);
+    }
+
+    res.json({
+      success: true,
+      data: {
+        questions: formattedQuestions,
+        pagination: {
+          page: Number(page),
+          limit: Number(limit),
+          total,
+          totalPages: Math.ceil(total / Number(limit))
+        }
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getTrendingQuestions = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const { period = 'week' } = req.query;
+    
+    // Calculate time threshold based on period
+    let timeThreshold;
+    const now = Date.now();
+    switch (period) {
+      case 'today':
+        timeThreshold = new Date(now - 24 * 60 * 60 * 1000);
+        break;
+      case 'week':
+        timeThreshold = new Date(now - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case 'month':
+        timeThreshold = new Date(now - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case 'all':
+        timeThreshold = new Date(0); // Beginning of time
+        break;
+      default:
+        timeThreshold = new Date(now - 7 * 24 * 60 * 60 * 1000);
+    }
+
+    const questions = await prisma.question.findMany({
+      take: 10,
+      where: {
+        createdAt: {
+          gte: timeThreshold
+        }
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            avatar: true
+          }
+        },
+        tags: {
+          include: {
+            tag: true
+          }
+        },
+        _count: {
+          select: {
+            answers: true,
+            votes: true
+          }
+        }
+      },
+      orderBy: {
+        views: 'desc'
+      }
+    });
+
+    const formattedQuestions = await Promise.all(questions.map(async q => {
+      // Calculate actual vote score (upvotes - downvotes)
+      const voteScore = await prisma.vote.aggregate({
+        where: { questionId: q.id },
+        _sum: { value: true }
+      });
+      
+      return {
+        id: q.id,
+        title: q.title,
+        preview: q.preview,
+        author: q.author,
+        tags: q.tags.map(t => t.tag.name),
+        votes: voteScore._sum.value || 0,
+        answers: q._count.answers,
+        views: q.views,
+        isSolved: q.isSolved,
+        createdAt: q.createdAt
+      };
+    }));
+
+    res.json({
+      success: true,
+      data: formattedQuestions
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getQuestionById = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const { id } = req.params;
+
+    // Validate MongoDB ObjectID format (24 character hex string)
+    if (!id || !/^[a-f\d]{24}$/i.test(id)) {
+      throw new AppError('Invalid question ID format', 400);
+    }
+
+    const question = await prisma.question.findUnique({
+      where: { id },
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            avatar: true,
+            points: true
+          }
+        },
+        tags: {
+          include: {
+            tag: true
+          }
+        },
+        answers: {
+          include: {
+            author: {
+              select: {
+                id: true,
+                name: true,
+                username: true,
+                avatar: true,
+                points: true
+              }
+            },
+            comments: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    username: true,
+                    avatar: true
+                  }
+                }
+              },
+              orderBy: {
+                createdAt: 'asc'
+              }
+            },
+            _count: {
+              select: {
+                votes: true
+              }
+            }
+          },
+          orderBy: [
+            { isAccepted: 'desc' },
+            { createdAt: 'desc' }
+          ]
+        },
+        votes: true,
+        comments: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                username: true,
+                avatar: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'asc'
+          }
+        }
+      }
+    });
+
+    if (!question) {
+      throw new AppError('Question not found', 404);
+    }
+
+    // Increment view count (don't await to avoid slowing down response)
+    prisma.question.update({
+      where: { id },
+      data: { views: { increment: 1 } }
+    }).catch(err => console.error('Failed to increment views:', err));
+
+    res.json({
+      success: true,
+      data: question
+    });
+  } catch (error) {
+    console.error('Error in getQuestionById:', error);
+    next(error);
+  }
+};
+
+const createQuestion = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { title, content, tags } = req.body;
+    const userId = req.userId;
+
+    // 🛡️ CONTENT MODERATION - Check for inappropriate content
+    const moderationResult = moderateQuestion({ title, content });
+    
+    if (!moderationResult.allowed) {
+      // Log the moderation action
+      logModerationAction(userId, 'question', moderationResult);
+      
+      // Return error to user
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: moderationResult.reason,
+          field: moderationResult.field,
+          code: 'CONTENT_MODERATION_FAILED',
+          severity: moderationResult.severity
+        }
+      });
+    }
+
+    // Generate preview (first 200 chars)
+    const preview = content.substring(0, 200);
+
+    // Create or find tags
+    const tagObjects = await Promise.all(
+      tags.map(async (tagName) => {
+        let tag = await prisma.tag.findUnique({
+          where: { name: tagName }
+        });
+
+        if (!tag) {
+          tag = await prisma.tag.create({
+            data: { name: tagName }
+          });
+        }
+
+        return tag;
+      })
+    );
+
+    // Create question
+    const question = await prisma.question.create({
+      data: {
+        title,
+        content,
+        preview,
+        authorId: userId,
+        tags: {
+          create: tagObjects.map(tag => ({
+            tagId: tag.id
+          }))
+        }
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            avatar: true
+          }
+        },
+        tags: {
+          include: {
+            tag: true
+          }
+        }
+      }
+    });
+
+    // Notify subscribers about new question
+    notifications.notify({
+      type: 'question',
+      message: 'New question posted',
+      data: { id: question.id, title: question.title, author: question.author }
+    });
+
+    // Extract and notify mentioned users
+    const { extractMentions } = require('../utils/mentions');
+    const mentions = extractMentions(content);
+    
+    if (mentions.length > 0) {
+      // Find mentioned users
+      const mentionedUsers = await prisma.user.findMany({
+        where: {
+          username: { in: mentions }
+        },
+        select: { id: true, username: true }
+      });
+
+      // Notify each mentioned user
+      for (const mentionedUser of mentionedUsers) {
+        if (mentionedUser.id !== userId) { // Don't notify self
+          notifications.notify({
+            type: 'mention',
+            message: `${question.author.name} mentioned you in a question`,
+            data: { 
+              questionId: question.id, 
+              questionTitle: question.title,
+              mentionedBy: question.author.name
+            },
+            targetUserId: mentionedUser.id
+          });
+        }
+      }
+    }
+
+    // Check and award badges
+    const earnedBadges = await achievementService.checkAndAwardBadges(userId);
+    
+    // Notify about earned badges
+    if (earnedBadges.length > 0) {
+      for (const badge of earnedBadges) {
+        notifications.notify({
+          type: 'badge',
+          message: `You earned the "${badge.name}" badge! ${badge.icon}`,
+          data: { badgeId: badge.id, badgeName: badge.name, badgeIcon: badge.icon },
+          targetUserId: userId
+        });
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      data: question
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updateQuestion = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const { id } = req.params;
+    const { title, content } = req.body;
+    const userId = req.userId;
+
+    const question = await prisma.question.findUnique({
+      where: { id }
+    });
+
+    if (!question) {
+      throw new AppError('Question not found', 404);
+    }
+
+    if (question.authorId !== userId) {
+      throw new AppError('Unauthorized', 403);
+    }
+
+    const preview = content.substring(0, 200);
+
+    const updatedQuestion = await prisma.question.update({
+      where: { id },
+      data: { title, content, preview },
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            avatar: true
+          }
+        },
+        tags: {
+          include: {
+            tag: true
+          }
+        }
+      }
+    });
+
+    res.json({
+      success: true,
+      data: updatedQuestion
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deleteQuestion = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+
+    const question = await prisma.question.findUnique({
+      where: { id }
+    });
+
+    if (!question) {
+      throw new AppError('Question not found', 404);
+    }
+
+    if (question.authorId !== userId) {
+      throw new AppError('Unauthorized', 403);
+    }
+
+    // Delete related records first (cascade delete)
+    await prisma.$transaction([
+      // Delete votes on answers
+      prisma.vote.deleteMany({
+        where: {
+          answer: {
+            questionId: id
+          }
+        }
+      }),
+      // Delete votes on question
+      prisma.vote.deleteMany({
+        where: { questionId: id }
+      }),
+      // Delete comments on answers
+      prisma.comment.deleteMany({
+        where: {
+          answer: {
+            questionId: id
+          }
+        }
+      }),
+      // Delete comments on question
+      prisma.comment.deleteMany({
+        where: { questionId: id }
+      }),
+      // Delete saved questions
+      prisma.savedQuestion.deleteMany({
+        where: { questionId: id }
+      }),
+      // Delete answers
+      prisma.answer.deleteMany({
+        where: { questionId: id }
+      }),
+      // Delete question tags
+      prisma.questionTag.deleteMany({
+        where: { questionId: id }
+      }),
+      // Finally delete the question
+      prisma.question.delete({
+        where: { id }
+      })
+    ]);
+
+    res.json({
+      success: true,
+      message: 'Question deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting question:', error);
+    next(error);
+  }
+};
+
+const saveQuestion = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+
+    console.log('Save question called:', { questionId: id, userId });
+
+    // Validate MongoDB ObjectID format
+    if (!id || !/^[a-f\d]{24}$/i.test(id)) {
+      throw new AppError('Invalid question ID format', 400);
+    }
+
+    // Check if already saved
+    const existing = await prisma.savedQuestion.findUnique({
+      where: {
+        userId_questionId: {
+          userId,
+          questionId: id
+        }
+      }
+    });
+
+    if (existing) {
+      console.log('Question already saved');
+      return res.json({
+        success: true,
+        message: 'Question already saved'
+      });
+    }
+
+    const savedQuestion = await prisma.savedQuestion.create({
+      data: {
+        userId,
+        questionId: id
+      }
+    });
+
+    console.log('Question saved successfully:', savedQuestion);
+
+    res.json({
+      success: true,
+      message: 'Question saved successfully',
+      data: savedQuestion
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const unsaveQuestion = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+
+    console.log('Unsave question called:', { questionId: id, userId });
+
+    // Validate MongoDB ObjectID format
+    if (!id || !/^[a-f\d]{24}$/i.test(id)) {
+      throw new AppError('Invalid question ID format', 400);
+    }
+
+    // Use deleteMany which doesn't fail if record doesn't exist
+    const result = await prisma.savedQuestion.deleteMany({
+      where: {
+        userId,
+        questionId: id
+      }
+    });
+
+    console.log('Unsave result:', result);
+
+    res.json({
+      success: true,
+      message: result.count > 0 ? 'Question unsaved successfully' : 'Question was not saved'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = {
+  getAllQuestions,
+  getTrendingQuestions,
+  getQuestionById,
+  createQuestion,
+  updateQuestion,
+  deleteQuestion,
+  saveQuestion,
+  unsaveQuestion
+};
