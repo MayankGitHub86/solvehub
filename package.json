@@ -2,6 +2,7 @@
   "name": "lumina-share-vercel",
   "version": "1.0.0",
   "description": "SolveHub - Full-stack deployment on Vercel",
+  "type": "commonjs",
   "main": "index.js",
   "scripts": {
     "dev": "vercel dev",
@@ -9,9 +10,22 @@
     "start": "vercel --prod"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^5.7.1",
+    "axios": "^1.13.2",
     "bcryptjs": "^2.4.3",
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-validator": "^7.0.1",
+    "helmet": "^7.2.0",
     "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "nodemailer": "^7.0.12",
+    "openai": "^6.15.0",
+    "socket.io": "^4.8.3",
+    "twilio": "^5.11.1",
     "prisma": "^5.7.1"
   },
   "keywords": [

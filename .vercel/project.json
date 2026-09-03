@@ -1,0 +1,16 @@
+{
+  "projectId": "prj_HL0csla8H9ZTaqDcVd9qazE75RFh",
+  "orgId": "team_R6vvrGzTBOj7h4Vv7fleqxjg",
+  "projectName": "solvehub-main",
+  "settings": {
+    "createdAt": 1788465508438,
+    "framework": null,
+    "devCommand": null,
+    "installCommand": "npm install",
+    "buildCommand": "npx prisma generate && cd frontend && npm install && npm run build",
+    "outputDirectory": "frontend/dist",
+    "rootDirectory": null,
+    "directoryListing": false,
+    "nodeVersion": "24.x"
+  }
+}
