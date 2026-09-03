@@ -55,6 +55,11 @@ module.exports = async function handler(req, res) {
 
     const googleUser = await userResponse.json();
 
+    if (!googleUser || !googleUser.email) {
+      console.error('Google user info missing email:', googleUser);
+      return res.status(400).json({ success: false, error: { message: 'Google account has no email associated with it' } });
+    }
+
     // Find or create user in database
     let user = await prisma.user.findUnique({
       where: { email: googleUser.email.toLowerCase() }
@@ -100,7 +105,10 @@ module.exports = async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('Google OAuth error:', error);
-    res.status(500).json({ success: false, error: { message: error.message || 'Internal server error' } });
+    console.error('Google OAuth error stack:', error.stack || error);
+    res.status(500).json({ 
+      success: false, 
+      error: { message: (error.message || 'Internal server error') + ' (Check Vercel Logs)' } 
+    });
   }
 };
